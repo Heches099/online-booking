@@ -55,7 +55,6 @@ class BusBookingApp extends StatelessWidget {
           surface: AppColors.surface,
           brightness: Brightness.light,
         ),
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
         scaffoldBackgroundColor: AppColors.background,
         cardTheme: const CardThemeData(
           elevation: 0,
