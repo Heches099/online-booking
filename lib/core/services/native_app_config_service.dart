@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class NativeAppConfigService {
@@ -5,6 +6,10 @@ class NativeAppConfigService {
       MethodChannel('online_booking/app_config');
 
   Future<bool> hasGoogleMapsApiKey() async {
+    if (kIsWeb) {
+      return false;
+    }
+
     try {
       final result = await _channel.invokeMethod<bool>('hasGoogleMapsApiKey');
       return result ?? false;

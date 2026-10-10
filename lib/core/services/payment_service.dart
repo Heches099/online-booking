@@ -240,8 +240,9 @@ class PaymentService {
       String msg = 'Failed to reserve seats';
       try {
         final d = e.response?.data;
-        if (d is Map) msg = d['message']?.toString() ?? d.toString();
-        else if (d is String) msg = d;
+        if (d is Map) {
+          msg = d['message']?.toString() ?? d.toString();
+        } else if (d is String) msg = d;
         else msg = e.message ?? msg;
       } catch (_) {}
       debugPrint('🔥 reserveSeats failed: $msg');
@@ -639,10 +640,10 @@ class PaymentService {
       String normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
       switch (normalized.length % 4) {
         case 2:
-          normalized = normalized + '==';
+          normalized = '$normalized==';
           break;
         case 3:
-          normalized = normalized + '=';
+          normalized = '$normalized=';
           break;
         default:
           break;

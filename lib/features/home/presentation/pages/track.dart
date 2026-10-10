@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -68,6 +69,16 @@ class _TrackPageState extends State<TrackPage> {
   Future<void> _bootstrap() async {
     _hasGoogleMapsApiKey = await _nativeAppConfigService.hasGoogleMapsApiKey();
     await _loadActiveTicket();
+
+    if (kIsWeb) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _hasGoogleMapsApiKey = false;
+      });
+      return;
+    }
+
     await _prepareTracking();
   }
 
@@ -76,6 +87,15 @@ class _TrackPageState extends State<TrackPage> {
   }
 
   Future<void> _prepareTracking() async {
+    if (kIsWeb) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _hasGoogleMapsApiKey = false;
+      });
+      return;
+    }
+
     _serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!_serviceEnabled) {
       if (!mounted) {
@@ -109,11 +129,32 @@ class _TrackPageState extends State<TrackPage> {
   }
 
   void _startPositionStream() {
+    if (kIsWeb) return;
+
     _positionStream?.cancel();
-    _positionStream = Geolocator.getPositionStream(
+    final stream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
+      ),
+    );
+    _positionStream = stream.listen(_updatePosition);
+    _positionStream!.onError(_handlePositionError);
+  }
+
+  void _handlePositionError(error) {
+    if (kIsWeb) return;
+    _fallbackToNetworkLocation();
+  }
+
+  Future<void> _fallbackToNetworkLocation() async {
+    if (kIsWeb) return;
+
+    await Future.delayed(const Duration(seconds: 2));
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 10,
       ),
     ).listen((position) {
       _updatePosition(position);
@@ -200,6 +241,8 @@ class _TrackPageState extends State<TrackPage> {
     final currentLatLng = _currentPosition == null
         ? null
         : LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isWideScreen = screenWidth >= 900;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -262,47 +305,103 @@ class _TrackPageState extends State<TrackPage> {
                   !_serviceEnabled))
             _buildPermissionState(),
           if (!_hasGoogleMapsApiKey) _buildMapsKeyMissingState(),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
-            left: 16,
-            right: 16,
-            child: _buildHeaderCard(),
-          ),
-          Positioned(
-            right: 16,
-            top: MediaQuery.of(context).padding.top + 120,
-            child: Column(
-              children: [
-                _buildMapAction(
-                  icon: Icons.layers_rounded,
-                  label: 'Map',
-                  onTap: _cycleMapType,
+          Align(
+            alignment: Alignment.topCenter,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isWideScreen ? 1200 : double.infinity,
+                  ),
+                  child: _buildHeaderCard(),
                 ),
-                const SizedBox(height: 12),
-                _buildMapAction(
-                  icon: _showTraffic
-                      ? Icons.traffic_rounded
-                      : Icons.traffic_outlined,
-                  label: 'Traffic',
-                  onTap: () => setState(() => _showTraffic = !_showTraffic),
-                ),
-                const SizedBox(height: 12),
-                _buildMapAction(
-                  icon: _followLocation
-                      ? Icons.gps_fixed_rounded
-                      : Icons.gps_not_fixed_rounded,
-                  label: 'Follow',
-                  onTap: () =>
-                      setState(() => _followLocation = !_followLocation),
-                ),
-              ],
+              ),
             ),
           ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: _buildTelemetryCard(),
+          if (!isWideScreen)
+            Positioned(
+              right: 16,
+              top: MediaQuery.of(context).padding.top + 110,
+              child: Column(
+                children: [
+                  _buildMapAction(
+                    icon: Icons.layers_rounded,
+                    label: 'Map',
+                    onTap: _cycleMapType,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildMapAction(
+                    icon: _showTraffic
+                        ? Icons.traffic_rounded
+                        : Icons.traffic_outlined,
+                    label: 'Traffic',
+                    onTap: () => setState(() => _showTraffic = !_showTraffic),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildMapAction(
+                    icon: _followLocation
+                        ? Icons.gps_fixed_rounded
+                        : Icons.gps_not_fixed_rounded,
+                    label: 'Follow',
+                    onTap: () =>
+                        setState(() => _followLocation = !_followLocation),
+                  ),
+                ],
+              ),
+            )
+          else
+            Positioned(
+              right: 24,
+              top: MediaQuery.of(context).padding.top + 120,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: Column(
+                  children: [
+                    _buildMapAction(
+                      icon: Icons.layers_rounded,
+                      label: 'Map',
+                      onTap: _cycleMapType,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMapAction(
+                      icon: _showTraffic
+                          ? Icons.traffic_rounded
+                          : Icons.traffic_outlined,
+                      label: 'Traffic',
+                      onTap: () => setState(() => _showTraffic = !_showTraffic),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMapAction(
+                      icon: _followLocation
+                          ? Icons.gps_fixed_rounded
+                          : Icons.gps_not_fixed_rounded,
+                      label: 'Follow',
+                      onTap: () =>
+                          setState(() => _followLocation = !_followLocation),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isWideScreen ? 24 : 16,
+                  0,
+                  isWideScreen ? 24 : 16,
+                  22,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isWideScreen ? 1000 : double.infinity,
+                  ),
+                  child: _buildTelemetryCard(),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -407,61 +506,70 @@ class _TrackPageState extends State<TrackPage> {
   }
 
   Widget _buildMapsKeyMissingState() {
-    return Container(
-      color: Colors.black.withAlpha(85),
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(24),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.map_outlined,
-                color: AppColors.primary,
-                size: 52,
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Google Maps key missing',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(245),
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(20),
+                  blurRadius: 20,
+                  offset: const Offset(0, 12),
                 ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Login will no longer crash. To enable the in-app map, add `google.maps.api.key=YOUR_ANDROID_MAPS_KEY` to `android/local.properties`, then restart the app.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  height: 1.45,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.map_outlined,
+                  color: AppColors.primary,
+                  size: 52,
                 ),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const SelectableText(
-                  'google.maps.api.key=YOUR_ANDROID_MAPS_KEY',
+                const SizedBox(height: 18),
+                const Text(
+                  'Google Maps key missing',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                const Text(
+                  'The app is still functional, but the live map needs a valid Google Maps API key. Add the key to android/local.properties and restart the app.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const SelectableText(
+                    'google.maps.api.key=YOUR_ANDROID_MAPS_KEY',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -637,20 +745,32 @@ class _TrackPageState extends State<TrackPage> {
             ],
           ),
           const SizedBox(height: 18),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _telemetryItem('Coordinates', coordinates),
-              _telemetryItem('Speed', '$speed km/h'),
-              _telemetryItem('Heading', '$heading°'),
-              _telemetryItem('Accuracy', '$accuracy m'),
-              _telemetryItem('Altitude', '$altitude m'),
-              _telemetryItem(
-                'Trail points',
-                _trail.length.toString(),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = constraints.maxWidth;
+              final itemWidth = cardWidth >= 700
+                  ? 180.0
+                  : cardWidth >= 450
+                      ? 150.0
+                      : (cardWidth - 24) / 2;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _telemetryItem('Coordinates', coordinates, width: itemWidth),
+                  _telemetryItem('Speed', '$speed km/h', width: itemWidth),
+                  _telemetryItem('Heading', '$heading°', width: itemWidth),
+                  _telemetryItem('Accuracy', '$accuracy m', width: itemWidth),
+                  _telemetryItem('Altitude', '$altitude m', width: itemWidth),
+                  _telemetryItem(
+                    'Trail points',
+                    _trail.length.toString(),
+                    width: itemWidth,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 18),
           Container(
@@ -691,9 +811,9 @@ class _TrackPageState extends State<TrackPage> {
     );
   }
 
-  Widget _telemetryItem(String label, String value) {
+  Widget _telemetryItem(String label, String value, {required double width}) {
     return Container(
-      width: 150,
+      width: width,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(10),

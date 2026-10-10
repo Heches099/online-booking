@@ -127,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
               autofocus: true,
               decoration: const InputDecoration(
                 labelText: 'Email Address',
-                hintText: 'name@example.com',
+                hintText: 'heches@gmail.com',
               ),
               validator: (value) {
                 if (!AuthFlowHelper.isValidEmail(value)) {

@@ -64,6 +64,11 @@ dependencies:
   flutterwave_standard: ^1.1.0
   firebase_messaging: ^16.3.0
   firebase_in_app_messaging: ^0.9.2+3
+  flutter_inappwebview: ^6.1.5
+
+dependency_overrides:
+  android_file_picker:
+    path: packages/android_file_picker
 
 dev_dependencies:
   flutter_test:
@@ -73,14 +78,43 @@ dev_dependencies:
   riverpod_generator: ^4.0.4
   freezed: ^4.0.2
   json_serializable: ^6.9.0
-retrofit_generator: ^10.2.6
-flutter_launcher_icons: ^0.14.3
+  retrofit_generator: ^10.2.6
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/logo
+    - assets/icon/logo.png
+    - assets/images/abc_upper.png
+    - assets/images/halopesa.png
+    - assets/images/mixx-by-yas.png
+    - assets/images/m_pesa.png
+    - assets/images/airtel-money.png
+    - assets/images/Nmb_logo.jpg
+    - assets/images/Logo-crdb-bank-tanzania-clipart-PNG.avif
+    - assets/images/kilimanjaro.png
+    - assets/images/3D_ecom.png
+    - assets/images/3D_ecom.jpg
+    - assets/images/katarama.jpeg
+    - assets/images/buti_la_zungu.png
+    - assets/images/Ester_luxury.png
+    - assets/images/BM_coach.jpeg
+    - assets/images/shabiby.png
+    - assets/images/machame.png
+    - assets/images/abood.png
+    - assets/images/new_force.jpg
+    - assets/images/abc_upper_class.webp
     - assets/lottie/
     - assets/vectors/
     - assets/icon/app_icon.png
     - assets/images/kilimanjaro_royal_express_bus.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/logo_launcher.png
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  adaptive_icon_background: '#000000'
+  adaptive_icon_foreground: assets/icon/logo_launcher.png

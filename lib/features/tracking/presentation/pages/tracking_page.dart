@@ -61,11 +61,45 @@ class _TrackingPageState extends State<TrackingPage> {
     _startTracking();
   }
 
-  void _startTracking() {
-    _positionStream = Geolocator.getPositionStream(
+void _startTracking() {
+    _positionStream?.cancel();
+    final stream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
+      ),
+    );
+    _positionStream = stream.listen(_onPositionChanged);
+    _positionStream!.onError(_onPositionError);
+  }
+
+  void _onPositionChanged(Position position) {
+    setState(() {
+      _currentPosition = position;
+      // Convert m/s to km/h
+      _currentSpeed = position.speed * 3.6;
+      _isMapLoading = false;
+    });
+
+    if (_mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLng(
+          LatLng(position.latitude, position.longitude),
+        ),
+      );
+    }
+  }
+
+  void _onPositionError(error) {
+    _fallbackToNetworkLocation();
+  }
+
+  Future<void> _fallbackToNetworkLocation() async {
+    await Future.delayed(const Duration(seconds: 2));
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 10,
       ),
     ).listen((Position position) {
       setState(() {

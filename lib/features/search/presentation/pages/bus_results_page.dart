@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/constants/route_pricing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/bus.dart';
+import '../../domain/entities/bus_search_request.dart';
+import '../../domain/repositories/bus_search_provider.dart';
+import '../../data/providers/mock_bus_search_provider.dart';
 import '../../../booking/presentation/pages/seat_selection_page.dart';
 
-class BusResultsPage extends StatelessWidget {
+class BusResultsPage extends StatefulWidget {
   final String from;
   final String to;
   final DateTime date;
   final double? priceOverride;
+  final BusSearchProvider? searchProvider;
 
   const BusResultsPage({
     super.key,
@@ -18,97 +21,120 @@ class BusResultsPage extends StatelessWidget {
     required this.to,
     required this.date,
     this.priceOverride,
+    this.searchProvider,
   });
 
-  double _calculatePrice(String from, String to) {
-    if (priceOverride != null) {
-      return priceOverride!;
-    }
+  @override
+  State<BusResultsPage> createState() => _BusResultsPageState();
+}
 
-    return RoutePricing.priceFor(from, to);
+class _BusResultsPageState extends State<BusResultsPage> {
+  late Future<List<Bus>> _busesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBuses();
+  }
+
+  void _loadBuses() {
+    final provider = widget.searchProvider ?? const MockBusSearchProvider();
+    _busesFuture = provider.searchBuses(
+      BusSearchRequest(
+        from: widget.from,
+        to: widget.to,
+        travelDate: widget.date,
+        fallbackPrice: widget.priceOverride,
+      ),
+    );
   }
 
   String _formatPrice(double price) {
     return NumberFormat.decimalPattern().format(price);
   }
 
-  List<Bus> _getMockBuses(double basePrice) {
-    return [
-      Bus(
-        id: '1',
-        name: 'Kilimanjaro Express',
-        type: 'Luxury AC Sleeper',
-        departureTime: '06:00 AM',
-        arrivalTime: '02:00 PM',
-        duration: '8h 00m',
-        price: basePrice,
-        rating: 4.9,
-        availableSeats: 54,
-        amenities: ['WiFi', 'Charging Port', 'Tv', 'Toilet', 'Water'],
-        route: [from, to],
-      ),
-      Bus(
-        id: '2',
-        name: 'Tahmeed Coach',
-        type: 'Executive AC Seater',
-        departureTime: '08:30 AM',
-        arrivalTime: '04:30 PM',
-        duration: '8h 00m',
-        price: basePrice,
-        rating: 4.7,
-        availableSeats: 54,
-        amenities: [
-          'WiFi',
-          'Extra Legroom',
-          'Tv',
-          'Toilet',
-          'Charging Port',
-          'Water'
-        ],
-        route: [from, to],
-      ),
-      Bus(
-        id: '3',
-        name: 'Dar Express',
-        type: 'Semi-Luxury AC',
-        departureTime: '10:00 AM',
-        arrivalTime: '06:00 PM',
-        duration: '8h 00m',
-        price: basePrice,
-        rating: 4.7,
-        availableSeats: 54,
-        amenities: ['WiFi'],
-        route: [from, to],
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
-    final basePrice = _calculatePrice(from, to);
-    final List<Bus> mockBuses = _getMockBuses(basePrice);
+    return FutureBuilder<List<Bus>>(
+      future: _busesFuture,
+      builder: (context, snapshot) {
+        final buses = snapshot.data ?? const <Bus>[];
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: CustomScrollView(
+            slivers: [
+              _buildSliverAppBar(context, buses.length),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (snapshot.hasError)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildResultsMessage(
+                    message:
+                        'Could not load buses. Check your connection and retry.',
+                    action: 'Retry',
+                    onPressed: () => setState(_loadBuses),
+                  ),
+                )
+              else if (buses.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildResultsMessage(
+                    message: 'No buses are available for this route and date.',
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return FadeInUp(
+                          delay: Duration(milliseconds: 100 * index),
+                          duration: const Duration(milliseconds: 600),
+                          child: _buildBusCard(context, buses[index]),
+                        );
+                      },
+                      childCount: buses.length,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(context, mockBuses.length),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return FadeInUp(
-                    delay: Duration(milliseconds: 100 * index),
-                    duration: const Duration(milliseconds: 600),
-                    child: _buildBusCard(context, mockBuses[index]),
-                  );
-                },
-                childCount: mockBuses.length,
+  Widget _buildResultsMessage({
+    required String message,
+    String? action,
+    VoidCallback? onPressed,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
               ),
             ),
-          ),
-        ],
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: onPressed, child: Text(action)),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -144,7 +170,7 @@ class BusResultsPage extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            from,
+                            widget.from,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -156,7 +182,7 @@ class BusResultsPage extends StatelessWidget {
                                 color: Colors.white70, size: 20),
                           ),
                           Text(
-                            to,
+                            widget.to,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -166,7 +192,7 @@ class BusResultsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "${date.day}/${date.month}/${date.year} • 1 Passenger • $count Buses Found",
+                        "${widget.date.day}/${widget.date.month}/${widget.date.year} • 1 Passenger • $count Buses Found",
                         style: TextStyle(
                             color: Colors.white.withAlpha(204), fontSize: 14),
                       ),
@@ -201,7 +227,7 @@ class BusResultsPage extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => SeatSelectionPage(
                 bus: bus,
-                travelDate: date,
+                travelDate: widget.date,
               ),
             ),
           ),
@@ -325,6 +351,8 @@ class BusResultsPage extends StatelessWidget {
     if (name.contains('WiFi')) return Icons.wifi_rounded;
     if (name.contains('Charging')) return Icons.bolt_rounded;
     if (name.contains('Water')) return Icons.local_drink_rounded;
+    if (name.contains('tea')) return Icons.currency_pound;
+    if (name.contains('Breakfast')) return Icons.baby_changing_station;
     return Icons.star_border_rounded;
   }
 
@@ -355,9 +383,9 @@ class BusResultsPage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _TimePoint(time: bus.departureTime, city: from, isStart: true),
+          _TimePoint(time: bus.departureTime, city: widget.from, isStart: true),
           Expanded(child: _RouteLine(duration: bus.duration)),
-          _TimePoint(time: bus.arrivalTime, city: to, isStart: false),
+          _TimePoint(time: bus.arrivalTime, city: widget.to, isStart: false),
         ],
       ),
     );

@@ -19,7 +19,7 @@ class _SplashPageState extends State<SplashPage> {
     _navigateToLogin();
   }
 
-  _navigateToLogin() async {
+  Future<void> _navigateToLogin() async {
     await Future.delayed(const Duration(seconds: 3));
     final destination = FirebaseAuth.instance.currentUser == null
         ? const LoginPage()

@@ -117,8 +117,18 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
             ..clear()
             ..addAll(reserved);
           // Deselect seats that just became unavailable
-          selectedSeats.removeWhere((s) => _bookedSeats.contains(s) || _reservedSeats.contains(s));
+          selectedSeats.removeWhere(
+              (s) => _bookedSeats.contains(s) || _reservedSeats.contains(s));
         });
+      }, onError: (Object error, StackTrace stackTrace) {
+        if (!mounted) return;
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   // const SnackBar(
+        //   //   content: Text(''
+        //   //       // 'Live seat availability could not load. Seats will be checked before payment.',
+        //   //       ),
+        //   // ),
+        // );
       });
     } catch (e) {
       // ignore
@@ -395,7 +405,8 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
             color: isBooked
-                ? const Color(0xFF8A2BE2) // purple border for booked
+                ? const Color.fromARGB(
+                    255, 43, 226, 128) // purple border for booked
                 : (isSelected
                     ? AppColors.primary
                     : (isVVIP ? const Color(0xFFFFD700) : Colors.black12)),
@@ -410,7 +421,9 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  isVVIP ? Icons.airline_seat_flat_rounded : Icons.chair_rounded,
+                  isVVIP
+                      ? Icons.airline_seat_flat_rounded
+                      : Icons.chair_rounded,
                   color: isBooked
                       ? const Color(0xFF6A0DAD)
                       : (isSelected

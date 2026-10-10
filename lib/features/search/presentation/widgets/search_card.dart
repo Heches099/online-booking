@@ -15,154 +15,185 @@ class _SearchCardState extends State<SearchCard> {
   String fromRegion = 'Dar es Salaam';
   String toRegion = 'Arusha';
   DateTime selectedDate = DateTime.now();
+  DateTime? returnDate;
+  int selectedTripType = 0;
+
+  static const Color _bookingGreen = Color(0xFF098E5F);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: AppColors.softShadow,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE7E7E7)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // The Route Selection Area
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              children: [
-                _buildRegionDropdown(
-                  icon: Icons.circle_outlined,
-                  label: "FROM",
-                  value: fromRegion,
-                  color: AppColors.primary,
-                  onChanged: (val) {
-                    if (val != toRegion) {
-                      setState(() => fromRegion = val!);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text("From and To locations must be different"),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                          child: Divider(thickness: 1, color: Colors.black12)),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.swap_vert_rounded,
-                            color: Colors.white, size: 20),
-                      ),
-                      const Expanded(
-                          child: Divider(thickness: 1, color: Colors.black12)),
-                    ],
-                  ),
-                ),
-                _buildRegionDropdown(
-                  icon: Icons.location_on_rounded,
-                  label: "TO",
-                  value: toRegion,
-                  color: AppColors.secondary,
-                  onChanged: (val) {
-                    if (val != fromRegion) {
-                      setState(() => toRegion = val!);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text("From and To locations must be different"),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
           Row(
             children: [
-              Expanded(
-                child: _buildDatePicker(context),
+              _tripTab('One Way', 0),
+              _tripTab('Round Trip', 1),
+              _tripTab('Multi City', 2),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // The Route Selection Area
+          Stack(
+            alignment: Alignment.centerRight,
+            children: [
+              Column(
+                children: [
+                  _buildRegionDropdown(
+                    icon: Icons.trip_origin_rounded,
+                    label: "From",
+                    value: fromRegion,
+                    color: _bookingGreen,
+                    onChanged: (val) {
+                      if (val != null && val != toRegion) {
+                        setState(() => fromRegion = val);
+                      } else if (val != null) {
+                        _showDifferentLocationsMessage();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildRegionDropdown(
+                    icon: Icons.location_on_outlined,
+                    label: "To",
+                    value: toRegion,
+                    color: _bookingGreen,
+                    onChanged: (val) {
+                      if (val != null && val != fromRegion) {
+                        setState(() => toRegion = val);
+                      } else if (val != null) {
+                        _showDifferentLocationsMessage();
+                      }
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildInfoTile(
-                  icon: Icons.person_outline_rounded,
-                  label: "PASSENGERS",
-                  value: "1 Person",
+              Positioned(
+                right: 12,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    tooltip: 'Swap locations',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() {
+                      final previousFrom = fromRegion;
+                      fromRegion = toRegion;
+                      toRegion = previousFrom;
+                    }),
+                    icon: const Icon(Icons.swap_vert_rounded, size: 20),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: AppColors.premiumShadow,
+          const SizedBox(height: 10),
+          _buildDatePicker(context, isReturnDate: false),
+          if (selectedTripType == 1) ...[
+            const SizedBox(height: 8),
+            _buildDatePicker(context, isReturnDate: true),
+          ],
+          if (selectedTripType == 2) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Multi-city bookings are coming soon.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BusResultsPage(
-                      from: fromRegion,
-                      to: toRegion,
-                      date: selectedDate,
-                      priceOverride:
-                          RoutePricing.priceFor(fromRegion, toRegion),
-                    ),
-                  ),
-                );
-              },
+          ],
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: selectedTripType == 2
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BusResultsPage(
+                            from: fromRegion,
+                            to: toRegion,
+                            date: selectedDate,
+                            priceOverride:
+                                RoutePricing.priceFor(fromRegion, toRegion),
+                          ),
+                        ),
+                      );
+                    },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
+                backgroundColor: _bookingGreen,
+                disabledBackgroundColor: const Color(0xFFBDBDBD),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.search_rounded, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text(
-                    "FIND YOUR BUS",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
+              icon: const Icon(Icons.search_rounded, size: 20),
+              label: const Text(
+                'Search Buses',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _tripTab(String label, int index) {
+    final isSelected = selectedTripType == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() {
+          selectedTripType = index;
+          if (index == 0) returnDate = null;
+        }),
+        child: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFF0F7F4) : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? _bookingGreen : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isSelected ? _bookingGreen : AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDifferentLocationsMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('From and To locations must be different'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -174,8 +205,13 @@ class _SearchCardState extends State<SearchCard> {
     required Color color,
     required ValueChanged<String?> onChanged,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFA),
+        border: Border.all(color: const Color(0xFFE5E5E5)),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         children: [
           Icon(icon, color: color, size: 24),
@@ -188,9 +224,8 @@ class _SearchCardState extends State<SearchCard> {
                   label,
                   style: TextStyle(
                     color: AppColors.textMuted,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
                   ),
                 ),
                 DropdownButtonHideUnderline(
@@ -201,7 +236,7 @@ class _SearchCardState extends State<SearchCard> {
                     icon: const Icon(Icons.keyboard_arrow_down_rounded),
                     style: const TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                     items: tanzaniaRegions.map((String region) {
@@ -221,21 +256,35 @@ class _SearchCardState extends State<SearchCard> {
     );
   }
 
-  Widget _buildDatePicker(BuildContext context) {
+  Widget _buildDatePicker(BuildContext context, {required bool isReturnDate}) {
+    final currentDate = isReturnDate ? returnDate : selectedDate;
     return GestureDetector(
       onTap: () async {
         final date = await showDatePicker(
           context: context,
-          initialDate: selectedDate,
-          firstDate: DateTime.now(),
+          initialDate: currentDate ?? selectedDate,
+          firstDate: isReturnDate ? selectedDate : DateTime.now(),
           lastDate: DateTime.now().add(const Duration(days: 90)),
         );
-        if (date != null) setState(() => selectedDate = date);
+        if (date != null) {
+          setState(() {
+            if (isReturnDate) {
+              returnDate = date;
+            } else {
+              selectedDate = date;
+              if (returnDate != null && returnDate!.isBefore(date)) {
+                returnDate = date;
+              }
+            }
+          });
+        }
       },
       child: _buildInfoTile(
         icon: Icons.calendar_today_rounded,
-        label: "DEPARTURE",
-        value: "${selectedDate.day} ${_getMonth(selectedDate.month)}",
+        label: isReturnDate ? 'Return Date' : 'Journey Date',
+        value: currentDate == null
+            ? 'Select return date'
+            : '${currentDate.day} ${_getMonth(currentDate.month)}',
       ),
     );
   }
@@ -264,10 +313,11 @@ class _SearchCardState extends State<SearchCard> {
     required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFFAFAFA),
+        border: Border.all(color: const Color(0xFFE5E5E5)),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,20 +326,20 @@ class _SearchCardState extends State<SearchCard> {
             label,
             style: const TextStyle(
               color: AppColors.textMuted,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Row(
             children: [
-              Icon(icon, size: 16, color: AppColors.primary),
+              Icon(icon, size: 16, color: _bookingGreen),
               const SizedBox(width: 8),
               Text(
                 value,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),

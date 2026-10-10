@@ -67,19 +67,46 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   final List<Map<String, dynamic>> mobilePaymentMethods = [
-    {'name': 'M-Pesa', 'icon': Icons.phone_iphone, 'color': Colors.red},
-    {'name': 'Tigo Pesa', 'icon': Icons.phone_android, 'color': Colors.blue},
+    {
+      'name': 'M-Pesa',
+      'icon': Icons.phone_iphone,
+      'color': Colors.red,
+      'logo': 'assets/images/m_pesa.png',
+    },
+    {
+      'name': 'Tigo Pesa',
+      'label': 'Mixx by Yas',
+      'icon': Icons.phone_android,
+      'color': Colors.blue,
+      'logo': 'assets/images/mixx-by-yas.png',
+    },
     {
       'name': 'Airtel Money',
       'icon': Icons.phone_android,
-      'color': Colors.red.shade900
+      'color': Colors.red.shade900,
+      'logo': 'assets/images/airtel-money.png',
     },
-    {'name': 'Halopesa', 'icon': Icons.phone_android, 'color': Colors.orange},
+    {
+      'name': 'Halopesa',
+      'icon': Icons.phone_android,
+      'color': Colors.orange,
+      'logo': 'assets/images/halopesa.png',
+    },
   ];
 
   final List<Map<String, dynamic>> bankPaymentMethods = [
-    {'name': 'NMB Bank', 'icon': Icons.account_balance, 'color': Colors.blue},
-    {'name': 'CRDB Bank', 'icon': Icons.account_balance, 'color': Colors.green},
+    {
+      'name': 'NMB Bank',
+      'icon': Icons.account_balance,
+      'color': Colors.blue,
+      'logo': 'assets/images/Nmb_logo.jpg',
+    },
+    {
+      'name': 'CRDB Bank',
+      'icon': Icons.account_balance,
+      'color': Colors.green,
+      'logo': 'assets/images/Logo-crdb-bank-tanzania-clipart-PNG.avif',
+    },
     {
       'name': 'Tanzania Bank',
       'icon': Icons.account_balance,
@@ -181,7 +208,8 @@ class _PaymentPageState extends State<PaymentPage> {
 
     try {
       // Reserve seats on the server before initiating payment
-      final Map<String, dynamic> reserveResp = await _paymentService.reserveSeats(
+      final Map<String, dynamic> reserveResp =
+          await _paymentService.reserveSeats(
         orderId: orderId,
         busId: widget.bus.id,
         travelDate: widget.travelDate,
@@ -190,7 +218,8 @@ class _PaymentPageState extends State<PaymentPage> {
 
       final bool reserved = reserveResp['success'] == true;
       if (!reserved) {
-        final String message = reserveResp['message']?.toString() ?? 'Selected seats are no longer available.';
+        final String message = reserveResp['message']?.toString() ??
+            'Selected seats are no longer available.';
         if (mounted) {
           setState(() => _isProcessing = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -221,7 +250,7 @@ class _PaymentPageState extends State<PaymentPage> {
               orderId: orderId,
             );
 
-      final String? trackedOrderId = result.orderId ?? orderId;
+      final String trackedOrderId = result.orderId ?? orderId;
       _latestOrderId = trackedOrderId;
 
       if (mounted) {
@@ -383,7 +412,8 @@ class _PaymentPageState extends State<PaymentPage> {
   Future<bool> _cancelPendingPayment(String orderId,
       {required String reason}) async {
     try {
-      final didCancel = await _paymentService.cancelOrder(orderId, reason: reason);
+      final didCancel =
+          await _paymentService.cancelOrder(orderId, reason: reason);
       return didCancel;
     } catch (_) {
       return false;
@@ -870,6 +900,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Widget _buildSquareMethodTile(Map<String, dynamic> method) {
     bool isSelected = selectedMethod == method['name'];
+    final logoPath = method['logo'] as String?;
     return GestureDetector(
       onTap: () => setState(() => selectedMethod = method['name']),
       child: AnimatedContainer(
@@ -887,13 +918,34 @@ class _PaymentPageState extends State<PaymentPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(method['icon'],
-                color: isSelected ? AppColors.primary : AppColors.textMuted,
-                size: 28),
-            const SizedBox(height: 10),
-            Text(method['name'],
+            SizedBox(
+              width: 58,
+              height: 42,
+              child: logoPath == null
+                  ? Icon(
+                      method['icon'],
+                      color:
+                          isSelected ? AppColors.primary : AppColors.textMuted,
+                      size: 28,
+                    )
+                  : Image.asset(
+                      logoPath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        method['icon'],
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textMuted,
+                        size: 28,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 8),
+            Text(method['label'] ?? method['name'],
+                maxLines: 2,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w800,
                     color: isSelected
                         ? AppColors.primary

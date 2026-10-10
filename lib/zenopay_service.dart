@@ -98,12 +98,6 @@ class ZenoPayService {
           _consecutiveErrors = 0;
           final data = _safeJsonDecode(response.body);
           final String status = data['paymentStatus'] ?? data['status'];
-          if (status == null) {
-            onError("Invalid response: missing paymentStatus field.");
-            timer.cancel();
-            _pollingTimer = null;
-            return;
-          }
           onStatusChanged(status);
           if (status == 'completed' ||
               status == 'failed' ||
