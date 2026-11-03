@@ -142,7 +142,7 @@ class _TrackPageState extends State<TrackPage> {
     _positionStream!.onError(_handlePositionError);
   }
 
-  void _handlePositionError(error) {
+  void _handlePositionError(Object error) {
     if (kIsWeb) return;
     _fallbackToNetworkLocation();
   }

@@ -20,7 +20,7 @@ void main() async {
       'SUPABASE_URL',
       defaultValue: 'https://YOUR_SUPABASE_URL.supabase.co',
     ),
-    anonKey: const String.fromEnvironment(
+    publishableKey: const String.fromEnvironment(
       'SUPABASE_ANON_KEY',
       defaultValue: 'YOUR_SUPABASE_ANON_KEY',
     ),

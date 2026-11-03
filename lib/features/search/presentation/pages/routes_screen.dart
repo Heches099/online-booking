@@ -76,7 +76,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
                 children: [
                   _buildRegionHeader(region),
                   const SizedBox(height: 8),
-                  ...regionBuses.map((bus) => _buildBusCard(bus)).toList(),
+                  ...regionBuses.map((bus) => _buildBusCard(bus)),
                   // Only show divider if not the last section
                   if (index < groupedBuses.length - 1)
                     const Divider(height: 32, thickness: 1),

@@ -35,10 +35,9 @@ class Bus {
     this.abcSeatIds = const {},
   });
 
-  factory Bus.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+  factory Bus.fromFirestore(Map<String, dynamic> data) {
     return Bus(
-      id: doc.id,
+      id: data['id']?.toString() ?? '',
       name: data['name'] ?? '',
       type: data['type'] ?? '',
       departureTime: data['departureTime'] ?? '',
@@ -49,7 +48,7 @@ class Bus {
       availableSeats: data['availableSeats'] ?? 0,
       amenities: List<String>.from(data['amenities'] ?? []),
       route: List<String>.from(data['route'] ?? []),
-      operatorCode: data['operatorCode']?.toString() ?? 'firestore',
+      operatorCode: data['operatorCode']?.toString() ?? 'local',
       operatorTripId: data['operatorTripId']?.toString(),
       abcFromId: int.tryParse(data['abcFromId']?.toString() ?? ''),
       abcToId: int.tryParse(data['abcToId']?.toString() ?? ''),
@@ -71,8 +70,7 @@ class Bus {
 
   /// Basi la majaribio linalofanana na ABC lakini haina IDs halisi.
   /// Hili lazima LIZUIWE kulipa — wala ZenoPay wala ABC.
-  bool get isABCDemo =>
-      !isABC && name.toLowerCase().contains('abc');
+  bool get isABCDemo => !isABC && name.toLowerCase().contains('abc');
 
   /// Exit mock: ABC checkout inaruhusiwa tu kama IDs halisi zipo.
   bool canCheckoutABC(String? seatId) =>

@@ -15,7 +15,8 @@ class UserProfileStorageService {
 
   static const String _profilePrefix = 'user_profile_';
 
-  String get _userId => Supabase.instance.client.auth.currentUser?.id ?? 'guest';
+  String get _userId =>
+      Supabase.instance.client.auth.currentUser?.id ?? 'guest';
 
   String get _storageKey => '$_profilePrefix$_userId';
 

@@ -24,7 +24,7 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
   final List<int> selectedSeats = [];
   final Set<int> _bookedSeats = {};
   final Set<int> _reservedSeats = {};
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _reservationsSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _reservationsSub;
 
   /// ABC lock inaweka kiti 1 kwa kila reservation, kwa hiyo basi halisi
   /// la ABC linaruhusu kiti 1 tu kwa kila malipo.
@@ -108,52 +108,52 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
           .eq('busId', widget.bus.id)
           .eq('travelDate', isoDate)
           .listen((rows) {
-        final now = DateTime.now();
-        final booked = <int>{};
-        final reserved = <int>{};
-        for (final data in rows) {
-          final seatNumRaw = data['seatNumber'];
-          final seatNum = seatNumRaw is int
-              ? seatNumRaw
-              : int.tryParse(seatNumRaw?.toString() ?? '0') ?? 0;
-          final status = (data['status'] ?? '').toString().toLowerCase();
-          if (status == 'booked') {
-            booked.add(seatNum);
-            continue;
-          }
-          if (status == 'reserved') {
-            final ts = data['reservedUntil'];
-            DateTime? until;
-            if (ts is String) {
-              until = DateTime.tryParse(ts);
+            final now = DateTime.now();
+            final booked = <int>{};
+            final reserved = <int>{};
+            for (final data in rows) {
+              final seatNumRaw = data['seatNumber'];
+              final seatNum = seatNumRaw is int
+                  ? seatNumRaw
+                  : int.tryParse(seatNumRaw?.toString() ?? '0') ?? 0;
+              final status = (data['status'] ?? '').toString().toLowerCase();
+              if (status == 'booked') {
+                booked.add(seatNum);
+                continue;
+              }
+              if (status == 'reserved') {
+                final ts = data['reservedUntil'];
+                DateTime? until;
+                if (ts is String) {
+                  until = DateTime.tryParse(ts);
+                }
+                if (until != null && until.isAfter(now)) {
+                  reserved.add(seatNum);
+                }
+              }
             }
-            if (until != null && until.isAfter(now)) {
-              reserved.add(seatNum);
+            if (mounted) {
+              setState(() {
+                _bookedSeats
+                  ..clear()
+                  ..addAll(booked);
+                _reservedSeats
+                  ..clear()
+                  ..addAll(reserved);
+                selectedSeats.removeWhere((s) =>
+                    _bookedSeats.contains(s) || _reservedSeats.contains(s));
+              });
             }
-          }
-        }
-        if (mounted) {
-          setState(() {
-            _bookedSeats
-              ..clear()
-              ..addAll(booked);
-            _reservedSeats
-              ..clear()
-              ..addAll(reserved);
-            selectedSeats.removeWhere(
-                (s) => _bookedSeats.contains(s) || _reservedSeats.contains(s));
+          }, onError: (Object error, StackTrace stackTrace) {
+            if (!mounted) return;
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   // const SnackBar(
+            //   //   content: Text(''
+            //   //       // 'Live seat availability could not load. Seats will be checked before payment.',
+            //   //       ),
+            //   // ),
+            // );
           });
-        }
-      }); onError: (Object error, StackTrace stackTrace) {
-        if (!mounted) return;
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   // const SnackBar(
-        //   //   content: Text(''
-        //   //       // 'Live seat availability could not load. Seats will be checked before payment.',
-        //   //       ),
-        //   // ),
-        // );
-      });
     } catch (e) {
       // ignore
     }
@@ -407,9 +407,7 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
     final bool isDisabled = isBooked || isReserved;
 
     return GestureDetector(
-      onTap: isDisabled
-          ? null
-          : () => setState(() => _toggleSeat(seatNum)),
+      onTap: isDisabled ? null : () => setState(() => _toggleSeat(seatNum)),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(

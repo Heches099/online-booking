@@ -618,13 +618,15 @@ class _RegionSearchSheetState extends State<_RegionSearchSheet> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _searchController,
                   autofocus: true,
                   decoration: InputDecoration(
                     hintText: 'Type to search (e.g. Arusha, Dodoma)...',
-                    prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF098E5F)),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: Color(0xFF098E5F)),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded, size: 20),
@@ -633,7 +635,8 @@ class _RegionSearchSheetState extends State<_RegionSearchSheet> {
                         : null,
                     filled: true,
                     fillColor: const Color(0xFFF5F5F5),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -663,18 +666,24 @@ class _RegionSearchSheetState extends State<_RegionSearchSheet> {
                             title: Text(
                               region,
                               style: TextStyle(
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
                                 color: isSelected
                                     ? const Color(0xFF098E5F)
-                                    : (isDisabled ? Colors.grey : AppColors.textPrimary),
+                                    : (isDisabled
+                                        ? Colors.grey
+                                        : AppColors.textPrimary),
                               ),
                             ),
                             trailing: isSelected
-                                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF098E5F))
+                                ? const Icon(Icons.check_circle_rounded,
+                                    color: Color(0xFF098E5F))
                                 : (isDisabled
                                     ? const Text(
                                         'Selected',
-                                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.grey),
                                       )
                                     : null),
                             onTap: isDisabled

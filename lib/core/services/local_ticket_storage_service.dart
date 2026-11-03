@@ -17,7 +17,8 @@ class LocalTicketStorageService {
   final NotificationService _notificationService = NotificationService();
   static const String _ticketsPrefix = 'booked_ticket_records_';
 
-  String get _userId => Supabase.instance.client.auth.currentUser?.id ?? 'guest';
+  String get _userId =>
+      Supabase.instance.client.auth.currentUser?.id ?? 'guest';
 
   String get _storageKey => '$_ticketsPrefix$_userId';
 
@@ -109,7 +110,8 @@ class LocalTicketStorageService {
   }
 
   DateTime _defaultReminderTime(BookedTicketRecord ticket) {
-    final planned = ticket.arrivalDateTime.subtract(const Duration(minutes: 30));
+    final planned =
+        ticket.arrivalDateTime.subtract(const Duration(minutes: 30));
     if (planned.isAfter(DateTime.now())) {
       return planned;
     }

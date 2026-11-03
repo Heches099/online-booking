@@ -481,7 +481,12 @@ class _HistoryPageState extends State<HistoryPage>
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       transform: Matrix4.identity()
-                        ..scale(isSelected ? 1.05 : 1.0),
+                        ..scaleByDouble(
+                          isSelected ? 1.05 : 1.0,
+                          isSelected ? 1.05 : 1.0,
+                          isSelected ? 1.05 : 1.0,
+                          1.0,
+                        ),
                       child: ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,

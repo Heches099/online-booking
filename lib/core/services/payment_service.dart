@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide Headers;
 
 enum PaymentInitStatus { success, pending, failed }
 
@@ -169,11 +169,11 @@ class PaymentService {
     if (backendBaseUrl.isEmpty) {
       throw StateError('Payment backend is not configured.');
     }
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) {
       throw StateError('Please sign in again to record the ABC checkout.');
     }
-    final idToken = await user.getIdToken(true);
+    final idToken = _supabase.auth.currentSession?.accessToken;
     if (idToken == null || idToken.isEmpty) {
       throw StateError('Could not verify your session. Please sign in again.');
     }
@@ -199,7 +199,7 @@ class PaymentService {
       formattedPhone = '255${formattedPhone.substring(1)}';
     }
 
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) {
       return PaymentInitResult(
         status: PaymentInitStatus.failed,
@@ -320,7 +320,7 @@ class PaymentService {
     if (backendBaseUrl.isEmpty) {
       return {'success': false, 'message': 'Payment backend not configured.'};
     }
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) {
       return {
         'success': false,
@@ -329,7 +329,7 @@ class PaymentService {
     }
 
     try {
-      final String? idToken = await user.getIdToken(true);
+      final String? idToken = _supabase.auth.currentSession?.accessToken;
       await _logIdTokenInfo(idToken, tag: 'reserveSeats');
       if (idToken == null || idToken.isEmpty) {
         return {'success': false, 'message': 'Authentication required.'};
@@ -390,10 +390,10 @@ class PaymentService {
   /// Cancel order via backend (releases reservations)
   Future<bool> cancelOrder(String orderId, {String? reason}) async {
     if (backendBaseUrl.isEmpty) return false;
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) return false;
     try {
-      final String? idToken = await user.getIdToken(true);
+      final String? idToken = _supabase.auth.currentSession?.accessToken;
       await _logIdTokenInfo(idToken, tag: 'cancelOrder');
       if (idToken == null || idToken.isEmpty) return false;
       final resp = await _dio.post(
@@ -468,14 +468,14 @@ class PaymentService {
     }
 
     try {
-      final user = _auth.currentUser;
+      final user = _supabase.auth.currentUser;
       if (user == null) {
         debugPrint('💥 ZENOPAY STATUS SYNC ERROR: User is not authenticated.');
         return;
       }
 
       // Force refresh the ID token before contacting backend
-      final String? idToken = await user.getIdToken(true);
+      final String? idToken = _supabase.auth.currentSession?.accessToken;
       // Debug: log token iat/exp so server and client timing can be compared
       try {
         await _logIdTokenInfo(idToken, tag: 'syncPendingPaymentStatus');

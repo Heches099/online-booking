@@ -174,7 +174,7 @@ class FilePickerAndroid extends FilePickerPlatform {
       });
     } on PlatformException catch (ex) {
       if (ex.code == "unknown_path") {
-        print(
+        debugPrint(
           '[$_tag] Could not resolve directory path. Maybe it\'s a protected one or unsupported (such as Downloads folder). Make sure that you are on SDK 21 or above.',
         );
       }

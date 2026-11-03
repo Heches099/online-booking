@@ -156,9 +156,7 @@ class BookedTicketRecord {
     if (status == 'Cancelled') {
       return status;
     }
-    return arrivalDateTime.isBefore(DateTime.now())
-        ? 'Completed'
-        : 'Upcoming';
+    return arrivalDateTime.isBefore(DateTime.now()) ? 'Completed' : 'Upcoming';
   }
 
   String get routeLabel => '$from -> $to';

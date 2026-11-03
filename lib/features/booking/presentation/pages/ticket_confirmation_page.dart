@@ -44,7 +44,7 @@ class _TicketConfirmationPageState extends State<TicketConfirmationPage> {
   static const Duration _paymentStatusPollInterval = Duration(seconds: 5);
   String? _securityHash;
   String _paymentStatus = 'pending';
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _paymentSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _paymentSub;
   Timer? _paymentTimeoutTimer;
   Timer? _paymentStatusPollTimer;
   final PaymentService _paymentService = PaymentService();
@@ -85,59 +85,59 @@ class _TicketConfirmationPageState extends State<TicketConfirmationPage> {
         .stream(primaryKey: ['orderId'])
         .eq('orderId', orderId)
         .listen((rows) {
-      if (rows.isEmpty) return;
-      final data = rows.first;
+          if (rows.isEmpty) return;
+          final data = rows.first;
 
-      final status = (data['status'] ?? '').toString().toLowerCase();
-      if (status.isEmpty) return;
+          final status = (data['status'] ?? '').toString().toLowerCase();
+          if (status.isEmpty) return;
 
-      if (status == 'completed') {
-        _paymentTimeoutTimer?.cancel();
-        _paymentStatusPollTimer?.cancel();
-        if (mounted) {
-          setState(() => _paymentStatus = 'completed');
-        } else {
-          _paymentStatus = 'completed';
-        }
-        _paymentSub?.cancel();
-        _initSecurityHash();
-        return;
-      }
+          if (status == 'completed') {
+            _paymentTimeoutTimer?.cancel();
+            _paymentStatusPollTimer?.cancel();
+            if (mounted) {
+              setState(() => _paymentStatus = 'completed');
+            } else {
+              _paymentStatus = 'completed';
+            }
+            _paymentSub?.cancel();
+            _initSecurityHash();
+            return;
+          }
 
-      if (status == 'cancelled' ||
-          status == 'canceled' ||
-          status == 'timeout' ||
-          status == 'expired') {
-        _paymentTimeoutTimer?.cancel();
-        _paymentStatusPollTimer?.cancel();
-        if (mounted) {
-          setState(() => _paymentStatus = 'cancelled');
-        } else {
-          _paymentStatus = 'cancelled';
-        }
-        _paymentSub?.cancel();
-        return;
-      }
+          if (status == 'cancelled' ||
+              status == 'canceled' ||
+              status == 'timeout' ||
+              status == 'expired') {
+            _paymentTimeoutTimer?.cancel();
+            _paymentStatusPollTimer?.cancel();
+            if (mounted) {
+              setState(() => _paymentStatus = 'cancelled');
+            } else {
+              _paymentStatus = 'cancelled';
+            }
+            _paymentSub?.cancel();
+            return;
+          }
 
-      if (status == 'failed' || status == 'error') {
-        _paymentTimeoutTimer?.cancel();
-        _paymentStatusPollTimer?.cancel();
-        if (mounted) {
-          setState(() => _paymentStatus = 'failed');
-        } else {
-          _paymentStatus = 'failed';
-        }
-        _paymentSub?.cancel();
-      }
-    }, onError: (_) {
-      _paymentTimeoutTimer?.cancel();
-      _paymentStatusPollTimer?.cancel();
-      if (mounted) {
-        setState(() => _paymentStatus = 'failed');
-      } else {
-        _paymentStatus = 'failed';
-      }
-    });
+          if (status == 'failed' || status == 'error') {
+            _paymentTimeoutTimer?.cancel();
+            _paymentStatusPollTimer?.cancel();
+            if (mounted) {
+              setState(() => _paymentStatus = 'failed');
+            } else {
+              _paymentStatus = 'failed';
+            }
+            _paymentSub?.cancel();
+          }
+        }, onError: (_) {
+          _paymentTimeoutTimer?.cancel();
+          _paymentStatusPollTimer?.cancel();
+          if (mounted) {
+            setState(() => _paymentStatus = 'failed');
+          } else {
+            _paymentStatus = 'failed';
+          }
+        });
   }
 
   void _startPaymentTimeout(String orderId) {
@@ -181,7 +181,8 @@ class _TicketConfirmationPageState extends State<TicketConfirmationPage> {
   Future<bool> _cancelPendingPayment(String orderId,
       {required String reason}) async {
     try {
-      final didCancel = await _paymentService.cancelOrder(orderId, reason: reason);
+      final didCancel =
+          await _paymentService.cancelOrder(orderId, reason: reason);
       return didCancel;
     } catch (_) {
       return false;

@@ -61,7 +61,7 @@ class _TrackingPageState extends State<TrackingPage> {
     _startTracking();
   }
 
-void _startTracking() {
+  void _startTracking() {
     _positionStream?.cancel();
     final stream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -90,7 +90,7 @@ void _startTracking() {
     }
   }
 
-  void _onPositionError(error) {
+  void _onPositionError(Object error) {
     _fallbackToNetworkLocation();
   }
 

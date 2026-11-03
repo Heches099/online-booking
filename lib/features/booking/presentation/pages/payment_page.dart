@@ -41,7 +41,7 @@ class _PaymentPageState extends State<PaymentPage> {
   String selectedPaymentType = 'mobile'; // 'mobile' or 'bank'
   bool _isProcessing = false;
   bool _isPendingSheetOpen = false;
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _paymentSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _paymentSub;
   Timer? _paymentTimeoutTimer;
   Timer? _paymentStatusPollTimer;
   String? _latestOrderId;
@@ -63,8 +63,7 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   bool get _isABCMetadataReady =>
-      widget.selectedSeats.length == 1 &&
-      widget.bus.canCheckoutABC(_abcSeatId);
+      widget.selectedSeats.length == 1 && widget.bus.canCheckoutABC(_abcSeatId);
 
   bool get _canStartABCCheckout => _isABCBooking && _isABCMetadataReady;
 
@@ -308,9 +307,8 @@ class _PaymentPageState extends State<PaymentPage> {
           ),
           actions: [
             TextButton(
-              onPressed: confirming
-                  ? null
-                  : () => Navigator.of(dialogContext).pop(),
+              onPressed:
+                  confirming ? null : () => Navigator.of(dialogContext).pop(),
               child: const Text('GHAIRI'),
             ),
             ElevatedButton(
@@ -478,70 +476,70 @@ class _PaymentPageState extends State<PaymentPage> {
         .stream(primaryKey: ['orderId'])
         .eq('orderId', orderId)
         .listen((rows) {
-      if (rows.isEmpty) return;
-      final data = rows.first;
+          if (rows.isEmpty) return;
+          final data = rows.first;
 
-      final String status = (data['status'] ?? '').toString().toLowerCase();
-      if (status.isEmpty) return;
+          final String status = (data['status'] ?? '').toString().toLowerCase();
+          if (status.isEmpty) return;
 
-      if (status == 'completed') {
-        _paymentTimeoutTimer?.cancel();
-        _paymentStatusPollTimer?.cancel();
-        _paymentSub?.cancel();
-        _closePendingSheetIfOpen();
-        if (mounted) _showSuccessAndGenerateTicket(orderId);
-        return;
-      }
+          if (status == 'completed') {
+            _paymentTimeoutTimer?.cancel();
+            _paymentStatusPollTimer?.cancel();
+            _paymentSub?.cancel();
+            _closePendingSheetIfOpen();
+            if (mounted) _showSuccessAndGenerateTicket(orderId);
+            return;
+          }
 
-      if (status == 'cancelled' ||
-          status == 'canceled' ||
-          status == 'timeout' ||
-          status == 'expired') {
-        _paymentTimeoutTimer?.cancel();
-        _paymentStatusPollTimer?.cancel();
-        _paymentSub?.cancel();
-        _closePendingSheetIfOpen();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                "Payment cancelled on your phone or timed out. Please try again."),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
+          if (status == 'cancelled' ||
+              status == 'canceled' ||
+              status == 'timeout' ||
+              status == 'expired') {
+            _paymentTimeoutTimer?.cancel();
+            _paymentStatusPollTimer?.cancel();
+            _paymentSub?.cancel();
+            _closePendingSheetIfOpen();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Payment cancelled on your phone or timed out. Please try again."),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
 
-      if (status == 'failed' || status == 'error') {
-        _paymentTimeoutTimer?.cancel();
-        _paymentStatusPollTimer?.cancel();
-        _paymentSub?.cancel();
-        _closePendingSheetIfOpen();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                "Payment failed or cancelled. Please try again or use a different number."),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }, onError: (_) {
-      _paymentTimeoutTimer?.cancel();
-      _paymentStatusPollTimer?.cancel();
-      _paymentSub?.cancel();
-      _closePendingSheetIfOpen();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Payment status check failed. Please try again."),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    });
+          if (status == 'failed' || status == 'error') {
+            _paymentTimeoutTimer?.cancel();
+            _paymentStatusPollTimer?.cancel();
+            _paymentSub?.cancel();
+            _closePendingSheetIfOpen();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Payment failed or cancelled. Please try again or use a different number."),
+                backgroundColor: AppColors.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }, onError: (_) {
+          _paymentTimeoutTimer?.cancel();
+          _paymentStatusPollTimer?.cancel();
+          _paymentSub?.cancel();
+          _closePendingSheetIfOpen();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Payment status check failed. Please try again."),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        });
   }
 
   void _startPaymentTimeout(String orderId) {

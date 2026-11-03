@@ -1,7 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/pages/main_bottom_nav.dart';
-import 'package:flutter/material.dart';
 import 'login_page.dart';
 
 class SplashPage extends StatefulWidget {

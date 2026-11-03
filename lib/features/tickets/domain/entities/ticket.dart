@@ -29,22 +29,21 @@ class Ticket {
     required this.createdAt,
   });
 
-  factory Ticket.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+  factory Ticket.fromFirestore(Map<String, dynamic> data) {
     return Ticket(
-      id: doc.id,
+      id: data['id']?.toString() ?? '',
       userId: data['userId'] ?? '',
       busId: data['busId'] ?? '',
       busName: data['busName'] ?? '',
       from: data['from'] ?? '',
       to: data['to'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
+      date: _readDate(data['date']),
       time: data['time'] ?? '',
       seatNumbers: List<String>.from(data['seatNumbers'] ?? []),
       status: data['status'] ?? 'Upcoming',
       qrCode: data['qrCode'] ?? '',
       totalPrice: (data['totalPrice'] ?? 0).toDouble(),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: _readDate(data['createdAt']),
     );
   }
 
@@ -55,13 +54,19 @@ class Ticket {
       'busName': busName,
       'from': from,
       'to': to,
-      'date': Timestamp.fromDate(date),
+      'date': date.toIso8601String(),
       'time': time,
       'seatNumbers': seatNumbers,
       'status': status,
       'qrCode': qrCode,
       'totalPrice': totalPrice,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': createdAt.toIso8601String(),
     };
+  }
+
+  static DateTime _readDate(dynamic value) {
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 }

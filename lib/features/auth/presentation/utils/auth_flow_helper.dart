@@ -73,11 +73,8 @@ class AuthFlowHelper {
     String? fallbackName,
   }) async {
     final supabase = Supabase.instance.client;
-    final existing = await supabase
-        .from('users')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
+    final existing =
+        await supabase.from('users').select().eq('id', user.id).maybeSingle();
 
     if (existing != null) {
       return;
@@ -128,10 +125,12 @@ class AuthFlowHelper {
     if (msg.contains('invalid email')) {
       return 'Enter a valid email address.';
     }
-    if (msg.contains('invalid login credentials') || msg.contains('wrong password')) {
+    if (msg.contains('invalid login credentials') ||
+        msg.contains('wrong password')) {
       return 'Incorrect email or password.';
     }
-    if (msg.contains('user already registered') || msg.contains('already in use')) {
+    if (msg.contains('user already registered') ||
+        msg.contains('already in use')) {
       return 'This email is already registered. Please sign in.';
     }
     if (msg.contains('password should be at least')) {

@@ -5,9 +5,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecurityService {
   static const _storage = FlutterSecureStorage();
-  
+
   // In a real production app, this key should be fetched from a secure remote vault or generated per device
-  static final _key = encrypt.Key.fromUtf8('my32charultrasecretkeyfornextgen'); 
+  static final _key = encrypt.Key.fromUtf8('my32charultrasecretkeyfornextgen');
   static final _iv = encrypt.IV.fromLength(16);
   static final _encrypter = encrypt.Encrypter(encrypt.AES(_key));
 
