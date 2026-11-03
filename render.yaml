@@ -12,13 +12,11 @@ services:
         value: 22
       - key: NODE_ENV
         value: production
-      - key: FIREBASE_PROJECT_ID
+      - key: SUPABASE_URL
         sync: false
-      - key: FIREBASE_CLIENT_EMAIL
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: FIREBASE_PRIVATE_KEY
-        sync: false
-      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+      - key: SUPABASE_ANON_KEY
         sync: false
       - key: ZENOPAY_API_KEY
         sync: false

@@ -1,9 +1,8 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum PaymentInitStatus { success, pending, failed }
 
@@ -20,6 +19,28 @@ class PaymentInitResult {
 
   bool get isSuccess => status == PaymentInitStatus.success;
   bool get isPending => status == PaymentInitStatus.pending;
+}
+
+class ABCCheckoutSession {
+  final String reservationId;
+  final String paymentUrl;
+  final String? fare;
+  final List<Map<String, dynamic>> cookies;
+  final bool useRedirect;
+  final String? ukey;
+
+  const ABCCheckoutSession({
+    required this.reservationId,
+    required this.paymentUrl,
+    required this.cookies,
+    this.fare,
+    this.useRedirect = false,
+    this.ukey,
+  });
+
+  /// Web haitumii cookies: inafungua [paymentUrl] kwenye tab mpya.
+  /// Mobile inahitaji cookies kuziweka kwenye WebView.
+  bool get canOpenInWebView => cookies.isNotEmpty;
 }
 
 class PaymentService {
@@ -54,8 +75,114 @@ class PaymentService {
   }
 
   final Dio _dio = Dio();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  SupabaseClient get _supabase => Supabase.instance.client;
+
+  Future<ABCCheckoutSession> lockABCSeat({
+    required int fromId,
+    required int toId,
+    required DateTime travelDate,
+    required String seatId,
+    required String subId,
+  }) async {
+    if (backendBaseUrl.isEmpty) {
+      throw StateError('Payment backend is not configured.');
+    }
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw StateError('Please sign in before booking an ABC seat.');
+    }
+    final idToken = _supabase.auth.currentSession?.accessToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('Could not verify your session. Please sign in again.');
+    }
+
+    try {
+      final response = await _dio.post(
+        '$backendBaseUrl/api/abc/lock-and-pay',
+        data: {
+          'from_id': fromId,
+          'to_id': toId,
+          'date': travelDate.toIso8601String().substring(0, 10),
+          'seatId': seatId,
+          'sub_id': subId,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $idToken'}),
+      );
+      final data = response.data;
+      if (data is! Map || data['status'] != 'success') {
+        throw StateError(data is Map
+            ? (data['message']?.toString() ?? 'ABC could not lock this seat.')
+            : 'Unexpected response from ABC booking service.');
+      }
+
+      final paymentUrl = Uri.tryParse(data['paymentUrl']?.toString() ?? '');
+      if (paymentUrl == null ||
+          paymentUrl.scheme != 'https' ||
+          paymentUrl.host != 'www.abcupperclass.co.tz') {
+        throw StateError('ABC returned an invalid payment URL.');
+      }
+      final rawCookies = data['cookieDetails'];
+      final cookies = rawCookies is List
+          ? rawCookies
+              .whereType<Map>()
+              .map((cookie) => Map<String, dynamic>.from(cookie))
+              .where(
+                  (cookie) => cookie['name'] != null && cookie['value'] != null)
+              .toList()
+          : <Map<String, dynamic>>[];
+      final useRedirect = data['useRedirect'] == true;
+      final ukey = data['ukey']?.toString();
+      if (cookies.isEmpty) {
+        // Mobile WebView inahitaji cookies. Web redirect inahitaji ukey.
+        final hasUkeyInUrl =
+            paymentUrl.queryParameters['ukey']?.isNotEmpty == true ||
+                (ukey?.isNotEmpty == true);
+        if (!kIsWeb || (!useRedirect && !hasUkeyInUrl)) {
+          throw StateError('ABC did not return a usable payment session.');
+        }
+      }
+      final reservationId = data['reservationId']?.toString() ?? '';
+      if (reservationId.isEmpty) {
+        throw StateError(
+            'ABC reservation details are incomplete. Please update the backend.');
+      }
+
+      return ABCCheckoutSession(
+        reservationId: reservationId,
+        paymentUrl: paymentUrl.toString(),
+        fare: data['fare']?.toString(),
+        cookies: cookies,
+        useRedirect: useRedirect,
+        ukey: ukey,
+      );
+    } on DioException catch (error) {
+      final body = error.response?.data;
+      final message =
+          body is Map ? body['message']?.toString() : body?.toString();
+      throw StateError(message?.isNotEmpty == true
+          ? message!
+          : 'Could not contact the ABC booking service.');
+    }
+  }
+
+  Future<void> recordABCCheckoutReturn(String reservationId) async {
+    if (backendBaseUrl.isEmpty) {
+      throw StateError('Payment backend is not configured.');
+    }
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('Please sign in again to record the ABC checkout.');
+    }
+    final idToken = await user.getIdToken(true);
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('Could not verify your session. Please sign in again.');
+    }
+    await _dio.post(
+      '$backendBaseUrl/api/abc/confirm',
+      data: {'reservationId': reservationId},
+      options: Options(headers: {'Authorization': 'Bearer $idToken'}),
+    );
+  }
 
   /// Initiate Payment using Zenopay
   Future<PaymentInitResult> initiateZenopayPayment({
@@ -91,12 +218,7 @@ class PaymentService {
     }
 
     try {
-      // Force a fresh ID token to avoid using an expired token
-      final String? idToken = await user.getIdToken(true);
-      // Debug: log token iat/exp to help diagnose expired-token issues
-      try {
-        await _logIdTokenInfo(idToken, tag: 'initiateZenopayPayment');
-      } catch (_) {}
+      final String? idToken = _supabase.auth.currentSession?.accessToken;
       if (idToken == null || idToken.isEmpty) {
         return PaymentInitResult(
           status: PaymentInitStatus.failed,
@@ -105,8 +227,8 @@ class PaymentService {
         );
       }
 
-      // 1. Create a transaction record in Firebase Firestore first (Pending)
-      await _saveTransactionToFirebase(
+      // 1. Create a transaction record in Supabase (Pending)
+      await _saveTransactionToSupabase(
         orderId: orderId,
         amount: amount,
         phoneNumber: formattedPhone,
@@ -200,7 +322,10 @@ class PaymentService {
     }
     final user = _auth.currentUser;
     if (user == null) {
-      return {'success': false, 'message': 'Please sign in before reserving seats.'};
+      return {
+        'success': false,
+        'message': 'Please sign in before reserving seats.'
+      };
     }
 
     try {
@@ -232,18 +357,27 @@ class PaymentService {
             'reservedUntil': data['reservedUntil']?.toString(),
           };
         }
-        return {'success': false, 'message': msg.isNotEmpty ? msg : 'Seat reservation failed'};
+        return {
+          'success': false,
+          'message': msg.isNotEmpty ? msg : 'Seat reservation failed'
+        };
       }
 
-      return {'success': false, 'message': 'Unexpected response from reservation endpoint.'};
+      return {
+        'success': false,
+        'message': 'Unexpected response from reservation endpoint.'
+      };
     } on DioException catch (e) {
       String msg = 'Failed to reserve seats';
       try {
         final d = e.response?.data;
         if (d is Map) {
           msg = d['message']?.toString() ?? d.toString();
-        } else if (d is String) msg = d;
-        else msg = e.message ?? msg;
+        } else if (d is String) {
+          msg = d;
+        } else {
+          msg = e.message ?? msg;
+        }
       } catch (_) {}
       debugPrint('🔥 reserveSeats failed: $msg');
       return {'success': false, 'message': msg};
@@ -275,8 +409,8 @@ class PaymentService {
     }
   }
 
-  /// Save transaction to Firebase
-  Future<void> _saveTransactionToFirebase({
+  /// Save transaction to Supabase
+  Future<void> _saveTransactionToSupabase({
     required String orderId,
     required double amount,
     required String phoneNumber,
@@ -285,9 +419,9 @@ class PaymentService {
     String? paymentReference,
   }) async {
     try {
-      final user = _auth.currentUser;
-      await _firestore.collection('payments').doc(orderId).set({
-        'userId': user?.uid,
+      final user = _supabase.auth.currentUser;
+      await _supabase.from('payments').upsert({
+        'userId': user?.id,
         'orderId': orderId,
         'amount': amount,
         'currency': 'TZS',
@@ -297,33 +431,33 @@ class PaymentService {
         'provider': 'Zenopay',
         if (paymentReference != null && paymentReference.trim().isNotEmpty)
           'paymentReference': paymentReference.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt': DateTime.now().toIso8601String(),
       });
     } catch (e) {
-      debugPrint("🔥 Firebase Save Error: $e");
+      debugPrint("🔥 Supabase Save Error: $e");
     }
   }
 
-  /// Update transaction status in Firebase
+  /// Update transaction status in Supabase
   Future<void> _updateTransactionStatus(String orderId, String status) async {
     try {
-      await _firestore.collection('payments').doc(orderId).update({
+      await _supabase.from('payments').update({
         'status': status,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+        'updatedAt': DateTime.now().toIso8601String(),
+      }).eq('orderId', orderId);
     } catch (e) {
-      debugPrint("🔥 Firebase Update Error: $e");
+      debugPrint("🔥 Supabase Update Error: $e");
     }
   }
 
   Future<void> _attachZenopayOrderId(String orderId, String zenoOrderId) async {
     try {
-      await _firestore.collection('payments').doc(orderId).update({
+      await _supabase.from('payments').update({
         'zenoOrderId': zenoOrderId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+        'updatedAt': DateTime.now().toIso8601String(),
+      }).eq('orderId', orderId);
     } catch (e) {
-      debugPrint("🔥 Firebase Update Error (zenoOrderId): $e");
+      debugPrint("🔥 Supabase Update Error (zenoOrderId): $e");
     }
   }
 
@@ -407,7 +541,8 @@ class PaymentService {
     String? orderId,
   }) async {
     // For now, mapping Bank to the same Zenopay flow or a custom instruction
-    final String resolvedOrderId = orderId ?? "ZEN-BANK-${DateTime.now().millisecondsSinceEpoch}";
+    final String resolvedOrderId =
+        orderId ?? "ZEN-BANK-${DateTime.now().millisecondsSinceEpoch}";
     return await initiateZenopayPayment(
       phoneNumber:
           "", // Usually bank doesn't need phone for STK but Zenopay might

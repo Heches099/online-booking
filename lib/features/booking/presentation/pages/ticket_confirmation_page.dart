@@ -7,8 +7,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/local_ticket_storage_service.dart';
@@ -81,13 +80,13 @@ class _TicketConfirmationPageState extends State<TicketConfirmationPage> {
     _paymentStatusPollTimer?.cancel();
     _startPaymentTimeout(orderId);
     _startPaymentStatusPolling(orderId);
-    _paymentSub = FirebaseFirestore.instance
-        .collection('payments')
-        .doc(orderId)
-        .snapshots()
-        .listen((snapshot) {
-      final data = snapshot.data();
-      if (data == null) return;
+    _paymentSub = Supabase.instance.client
+        .from('payments')
+        .stream(primaryKey: ['orderId'])
+        .eq('orderId', orderId)
+        .listen((rows) {
+      if (rows.isEmpty) return;
+      final data = rows.first;
 
       final status = (data['status'] ?? '').toString().toLowerCase();
       if (status.isEmpty) return;
@@ -216,7 +215,7 @@ class _TicketConfirmationPageState extends State<TicketConfirmationPage> {
       return;
     }
 
-    final userId = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'guest';
     final route = widget.bus.route;
     final record = BookedTicketRecord(
       id: _ticketId(securityHash),

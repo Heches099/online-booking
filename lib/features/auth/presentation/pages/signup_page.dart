@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/pages/main_bottom_nav.dart';
 import '../utils/auth_flow_helper.dart';
@@ -72,22 +72,22 @@ class _SignupPageState extends State<SignupPage> {
       setState(() => _isLoading = true);
 
       try {
-        final credential =
-            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        final res = await Supabase.instance.client.auth.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
+          data: {'name': _nameController.text.trim()},
         );
 
-        if (credential.user != null) {
+        if (res.user != null) {
           await AuthFlowHelper.createUserProfileIfNeeded(
-            credential.user!,
+            res.user!,
             fallbackName: _nameController.text.trim(),
           );
 
           _navigateToHome();
         }
-      } on FirebaseAuthException catch (error) {
-        _showSnackBar(AuthFlowHelper.firebaseErrorMessage(error));
+      } on AuthException catch (error) {
+        _showSnackBar(AuthFlowHelper.supabaseErrorMessage(error));
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -105,10 +105,10 @@ class _SignupPageState extends State<SignupPage> {
       }
 
       _navigateToHome();
-    } on FirebaseAuthException catch (error) {
+    } on AuthException catch (error) {
       debugPrint('Google Auth Error [${error.code}]: ${error.message}');
       _showSnackBar(
-        AuthFlowHelper.firebaseErrorMessage(error, isGoogleFlow: true),
+        AuthFlowHelper.supabaseErrorMessage(error, isGoogleFlow: true),
       );
     } catch (error) {
       debugPrint('Google Auth Error: $error');

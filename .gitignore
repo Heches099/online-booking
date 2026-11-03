@@ -50,3 +50,19 @@ backend/.env
 *.env
 backend/node_modules/
 serviceAccountKey*.json
+
+# Flutter generated Android build files
+/android/app/build/
+/android/build/
+
+# Gradle generated files
+**/.gradle/
+
+# Windows/Linux/macOS generated build files
+/windows/flutter/ephemeral/
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+
+# Environment files
+.env.*
+!.env.example

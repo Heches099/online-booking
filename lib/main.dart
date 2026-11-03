@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/services/app_session_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/widgets/session_activity_listener.dart';
@@ -15,9 +14,16 @@ final GlobalKey<ScaffoldMessengerState> appScaffoldMessengerKey =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: const String.fromEnvironment(
+      'SUPABASE_URL',
+      defaultValue: 'https://YOUR_SUPABASE_URL.supabase.co',
+    ),
+    anonKey: const String.fromEnvironment(
+      'SUPABASE_ANON_KEY',
+      defaultValue: 'YOUR_SUPABASE_ANON_KEY',
+    ),
   );
 
   // Initialize Local Notifications for Offline Alarms

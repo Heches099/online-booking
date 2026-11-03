@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/utils/auth_flow_helper.dart';
@@ -14,11 +14,11 @@ class AppSessionService {
 
   static const Duration inactivityTimeout = Duration(minutes: 2);
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  GoTrueClient get _auth => Supabase.instance.client.auth;
 
   GlobalKey<NavigatorState>? _navigatorKey;
   GlobalKey<ScaffoldMessengerState>? _scaffoldMessengerKey;
-  StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
   Timer? _inactivityTimer;
   DateTime? _backgroundedAt;
   bool _isLoggingOut = false;
@@ -29,7 +29,9 @@ class AppSessionService {
   }) {
     _navigatorKey = navigatorKey;
     _scaffoldMessengerKey = scaffoldMessengerKey;
-    _authSubscription ??= _auth.authStateChanges().listen(_handleAuthChange);
+    _authSubscription ??= _auth.onAuthStateChange.listen((data) {
+      _handleAuthChange(data.session?.user);
+    });
 
     if (_auth.currentUser != null) {
       markActivity();

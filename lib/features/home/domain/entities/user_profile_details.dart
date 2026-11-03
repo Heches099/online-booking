@@ -42,11 +42,12 @@ class UserProfileDetails {
       email: email,
       phoneNumber: '',
       nidaNumber: '',
-      age: 18,
+      age: 25,
       avatarPath: '',
       favoriteRoutes: const [
         'Dar es Salaam -> Arusha',
         'Dar es Salaam -> Dodoma',
+        'Dar es Salaam -> Singida',
       ],
       preferredLanguage: 'English',
       preferredCoachClass: 'Luxury AC Sleeper',

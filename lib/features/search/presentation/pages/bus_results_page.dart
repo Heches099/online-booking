@@ -353,6 +353,7 @@ class _BusResultsPageState extends State<BusResultsPage> {
     if (name.contains('Water')) return Icons.local_drink_rounded;
     if (name.contains('tea')) return Icons.currency_pound;
     if (name.contains('Breakfast')) return Icons.baby_changing_station;
+    if (name.contains('Personal Tv')) return Icons.tv;
     return Icons.star_border_rounded;
   }
 

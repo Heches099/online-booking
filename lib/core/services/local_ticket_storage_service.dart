@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/home/domain/entities/booked_ticket_record.dart';
 import 'notification_service.dart';
@@ -17,7 +17,7 @@ class LocalTicketStorageService {
   final NotificationService _notificationService = NotificationService();
   static const String _ticketsPrefix = 'booked_ticket_records_';
 
-  String get _userId => FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+  String get _userId => Supabase.instance.client.auth.currentUser?.id ?? 'guest';
 
   String get _storageKey => '$_ticketsPrefix$_userId';
 

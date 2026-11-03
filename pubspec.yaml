@@ -12,10 +12,8 @@ dependencies:
   cupertino_icons: ^2.0.0
   http: ^1.2.0
 
-  # Firebase
-  firebase_core: ^4.10.0
-  cloud_firestore: ^6.5.0
-  firebase_auth: ^6.5.2
+  # Supabase
+  supabase_flutter: ^2.8.0
   google_sign_in: ^7.2.0
 
   # Notifications & Offline Alarms
@@ -62,8 +60,6 @@ dependencies:
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
   flutterwave_standard: ^1.1.0
-  firebase_messaging: ^16.3.0
-  firebase_in_app_messaging: ^0.9.2+3
   flutter_inappwebview: ^6.1.5
 
 dependency_overrides:
@@ -98,8 +94,10 @@ flutter:
     - assets/images/3D_ecom.jpg
     - assets/images/katarama.jpeg
     - assets/images/buti_la_zungu.png
+    - assets/images/tashriff.png
     - assets/images/Ester_luxury.png
     - assets/images/BM_coach.jpeg
+    - assets/images/baraka.png
     - assets/images/shabiby.png
     - assets/images/machame.png
     - assets/images/abood.png

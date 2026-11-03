@@ -86,7 +86,8 @@ class _HistoryPageState extends State<HistoryPage>
 
   Future<void> _toggleReminder(BookedTicketRecord ticket) async {
     if (!ticket.reminderEnabled) {
-      final permissionsGranted = await NotificationService().ensurePermissions();
+      final permissionsGranted =
+          await NotificationService().ensurePermissions();
       if (!permissionsGranted) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

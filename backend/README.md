@@ -15,6 +15,26 @@ npm start
 
 The local server defaults to `http://localhost:3000`.
 
+## ABC Upper Class Checkout
+
+`POST /api/abc/lock-and-pay` requires a Firebase ID token. Send the ABC route IDs, travel date, seat ID, and preferably the selected `sub_id` so the first search result is not chosen accidentally:
+
+```json
+{
+	"from_id": 1,
+	"to_id": 26,
+	"date": "2026-10-12",
+	"seatId": "L-2-3-10",
+	"sub_id": "ABC_TRIP_ID"
+}
+```
+
+The ABC search response must include `sub_id`, `ukey`, `tdi_id`, `asi_id`, `lb_id`, and `pbi_id`; the route fails closed if those identifiers are absent. A successful response includes the fare, reservation ID, `paymentUrl` (with `?ukey=`), `ukey`, `useRedirect: true`, and session cookies. Treat `cookies` as a short-lived credential: send it only to the HTTPS ABC WebView session, and never log or persist it.
+
+Mobile apps install `cookieDetails` into the WebView before opening `paymentUrl`. Flutter Web cannot set third-party ABC cookies (browser same-origin policy — the backend also cannot `Set-Cookie` for ABC's domain), so Web opens `paymentUrl` in a new tab and asks the user to press Thibitisha afterwards.
+
+After the WebView returns (or the Web user presses Thibitisha), `POST /api/abc/confirm` accepts `{ "reservationId": "..." }` with the same Firebase authorization. A client-side URL is not payment proof, so this endpoint records `pending_confirmation`; it does not mark the seat booked or the payment completed. An ABC-authoritative payment/ticket confirmation integration is required before Heches can safely issue a confirmed ticket.
+
 ## Render Deployment
 
 This repository includes a root `render.yaml` blueprint. In Render:

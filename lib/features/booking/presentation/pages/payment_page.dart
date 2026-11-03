@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../search/domain/entities/bus.dart';
+import 'abc_payment_webview_page.dart';
 import 'ticket_confirmation_page.dart';
 import '../../../../core/services/payment_service.dart';
 
@@ -44,6 +46,27 @@ class _PaymentPageState extends State<PaymentPage> {
   Timer? _paymentStatusPollTimer;
   String? _latestOrderId;
   bool _isSyncingPaymentStatus = false;
+
+  bool get _isABCBooking => widget.bus.isABC;
+
+  /// Mock yenye jina la ABC lakini bila IDs halisi: ZIMA checkout kabisa.
+  /// Hairuhusiwi kwenda ZenoPay (hasara) wala ABC.
+  bool get _isABCDemoBlocked => widget.bus.isABCDemo;
+
+  String? get _abcSeatId {
+    if (widget.selectedSeats.length != 1) return null;
+    final label = widget.selectedSeats.single;
+    final number = label
+        .replaceFirst(RegExp(r'^Seat\s+', caseSensitive: false), '')
+        .trim();
+    return widget.bus.abcSeatIds[label] ?? widget.bus.abcSeatIds[number];
+  }
+
+  bool get _isABCMetadataReady =>
+      widget.selectedSeats.length == 1 &&
+      widget.bus.canCheckoutABC(_abcSeatId);
+
+  bool get _canStartABCCheckout => _isABCBooking && _isABCMetadataReady;
 
   @override
   void initState() {
@@ -194,14 +217,172 @@ class _PaymentPageState extends State<PaymentPage> {
     return reference.substring(0, 40);
   }
 
+  Future<void> _handleABCPayment() async {
+    if (!_isABCMetadataReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'ABC checkout bado ni mock - inasubiri IDs halisi kutoka provider.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+    try {
+      final session = await _paymentService.lockABCSeat(
+        fromId: widget.bus.abcFromId!,
+        toId: widget.bus.abcToId!,
+        travelDate: widget.travelDate,
+        seatId: _abcSeatId!,
+        subId: widget.bus.operatorTripId!.trim(),
+      );
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+
+      if (kIsWeb) {
+        // Flutter Web haikubali kuweka Cookie header ya ABC (browser
+        // same-origin policy). Fungua payment kwenye tab mpya kupitia
+        // paymentUrl yenye ukey, kisha subiri pending_confirmation.
+        final uri = Uri.tryParse(session.paymentUrl);
+        if (uri == null) {
+          throw StateError('ABC returned an invalid payment URL.');
+        }
+        final opened = await launchUrl(
+          uri,
+          webOnlyWindowName: '_blank',
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened) {
+          throw StateError(
+              'Could not open the ABC payment page. Please allow popups and try again.');
+        }
+        if (!mounted) return;
+        await _showABCWebPendingDialog(session.reservationId);
+        return;
+      }
+
+      if (!session.canOpenInWebView) {
+        throw StateError(
+            'ABC did not return a usable payment session for this device.');
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ABCPaymentWebViewPage(
+            session: session,
+            seatLabel: widget.selectedSeats.single,
+            onCheckoutReturn: _paymentService.recordABCCheckoutReturn,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      final message = error.toString().replaceFirst('Bad state: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Baada ya kulipa ABC kwenye tab mpya, bonyeza Thibitisha.
+  /// ABC haina webhook: tunaweka pending_confirmation, si booked.
+  Future<void> _showABCWebPendingDialog(String reservationId) {
+    bool confirming = false;
+    final messenger = ScaffoldMessenger.of(context);
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          title: const Text('Kamilisha malipo ABC'),
+          content: const Text(
+            'Umefunguliwa ukurasa wa malipo wa ABC kwenye tab mpya.\n\n'
+            'Baada ya kulipa ABC, bonyeza Thibitisha. Tiketi itabaki '
+            'pending_confirmation hadi ABC ithibitishe malipo.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: confirming
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: const Text('GHAIRI'),
+            ),
+            ElevatedButton(
+              onPressed: confirming
+                  ? null
+                  : () async {
+                      setDialogState(() => confirming = true);
+                      try {
+                        await _paymentService
+                            .recordABCCheckoutReturn(reservationId);
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                        if (!mounted) return;
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Asante! Kurudi kwako kumerekodiwa kama pending_confirmation. Tutathibitisha tiketi ABC ikijibu.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } catch (e) {
+                        setDialogState(() => confirming = false);
+                        if (!mounted) return;
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Imeshindikana kurekodi kurudi: ${e.toString().replaceFirst('Bad state: ', '')}'),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+              child: confirming
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('NIMELIPA — THIBITISHA'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _handlePayment() async {
+    if (_isABCDemoBlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'ABC checkout bado ni mock - inasubiri IDs halisi kutoka provider.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (_isABCBooking) {
+      await _handleABCPayment();
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isProcessing = true);
 
     final double totalAmount = _calculateTotal();
     final String paymentReference = _buildPaymentReference(totalAmount);
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     // Always create an orderId so we can reserve seats regardless of method
     final String orderId = "ZEN-${DateTime.now().millisecondsSinceEpoch}";
     _latestOrderId = orderId;
@@ -259,9 +440,7 @@ class _PaymentPageState extends State<PaymentPage> {
           _showSuccessAndGenerateTicket(trackedOrderId);
         } else if (result.isPending) {
           _showPendingSheet(result.message);
-          if (trackedOrderId != null) {
-            _listenForPaymentStatus(trackedOrderId);
-          }
+          _listenForPaymentStatus(trackedOrderId);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -294,13 +473,13 @@ class _PaymentPageState extends State<PaymentPage> {
     _paymentStatusPollTimer?.cancel();
     _startPaymentTimeout(orderId);
     _startPaymentStatusPolling(orderId);
-    _paymentSub = FirebaseFirestore.instance
-        .collection('payments')
-        .doc(orderId)
-        .snapshots()
-        .listen((snapshot) {
-      final data = snapshot.data();
-      if (data == null) return;
+    _paymentSub = Supabase.instance.client
+        .from('payments')
+        .stream(primaryKey: ['orderId'])
+        .eq('orderId', orderId)
+        .listen((rows) {
+      if (rows.isEmpty) return;
+      final data = rows.first;
 
       final String status = (data['status'] ?? '').toString().toLowerCase();
       if (status.isEmpty) return;
@@ -603,67 +782,126 @@ class _PaymentPageState extends State<PaymentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FadeInDown(child: _buildAmountCard(totalAmount)),
-              const SizedBox(height: 32),
-              _buildSectionHeader("PAYMENT METHOD"),
-              const SizedBox(height: 16),
-              _buildPaymentTypeSelector(),
-              const SizedBox(height: 32),
-              if (selectedPaymentType == 'mobile') ...[
-                _buildSectionHeader("SELECT MOBILE MONEY"),
+              if (_isABCBooking || _isABCDemoBlocked) ...[
+                _buildSectionHeader('ABC DIRECT CHECKOUT'),
                 const SizedBox(height: 16),
-                SizedBox(
-                  height: 100,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: mobilePaymentMethods
-                        .map((method) => _buildSquareMethodTile(method))
-                        .toList(),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: AppColors.softShadow,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.bus.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary)),
+                      const SizedBox(height: 8),
+                      Text('Seat: ${widget.selectedSeats.join(', ')}'),
+                      Text(
+                          'Travel date: ${_formatTravelDate(widget.travelDate)}'),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'ABC will confirm the fare and collect payment on its secure payment page.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 32),
-                _buildSectionHeader("PAYMENT NUMBER"),
-                const SizedBox(height: 16),
-                _buildPhoneField(),
-                const SizedBox(height: 12),
-                const Text(
-                  "You will be redirected to authorize your mobile money payment.",
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w500),
-                ),
+                if (_isABCDemoBlocked) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'ABC checkout bado ni mock - inasubiri IDs halisi kutoka provider.',
+                    style: TextStyle(
+                        color: AppColors.error, fontWeight: FontWeight.w700),
+                  ),
+                ] else if (!_isABCMetadataReady) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'ABC booking is unavailable for this bus. Live route, trip, and seat IDs are required.',
+                    style: TextStyle(
+                        color: AppColors.error, fontWeight: FontWeight.w700),
+                  ),
+                ] else if (kIsWeb) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Malipo yatafunguliwa kwenye tab mpya ya ABC. Baada ya kulipa, bonyeza Thibitisha.',
+                    style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
               ] else ...[
-                _buildSectionHeader("SELECT BANK"),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 100,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: bankPaymentMethods
-                        .map((method) => _buildSquareMethodTile(method))
-                        .toList(),
-                  ),
-                ),
+                FadeInDown(child: _buildAmountCard(totalAmount)),
                 const SizedBox(height: 32),
-                _buildBankTransferInfo(),
+                _buildSectionHeader('PAYMENT METHOD'),
+                const SizedBox(height: 16),
+                _buildPaymentTypeSelector(),
+                const SizedBox(height: 32),
+                if (selectedPaymentType == 'mobile') ...[
+                  _buildSectionHeader('SELECT MOBILE MONEY'),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 100,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: mobilePaymentMethods
+                          .map((method) => _buildSquareMethodTile(method))
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('PAYMENT NUMBER'),
+                  const SizedBox(height: 16),
+                  _buildPhoneField(),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'You will be redirected to authorize your mobile money payment.',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ] else ...[
+                  _buildSectionHeader('SELECT BANK'),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 100,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: bankPaymentMethods
+                          .map((method) => _buildSquareMethodTile(method))
+                          .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildBankTransferInfo(),
+                ],
               ],
               const SizedBox(height: 40),
               FadeInUp(child: _buildPayButton(totalAmount)),
               const SizedBox(height: 30),
-              const Center(
+              Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_rounded,
+                    const Icon(Icons.lock_rounded,
                         size: 12, color: AppColors.textMuted),
-                    SizedBox(width: 8),
-                    Text("SECURED BY ZENOPAY",
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1)),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isABCBooking || _isABCDemoBlocked
+                          ? 'PAYMENT PROCESSED BY ABC'
+                          : 'SECURED BY ZENOPAY',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1),
+                    ),
                   ],
                 ),
               ),
@@ -999,7 +1237,11 @@ class _PaymentPageState extends State<PaymentPage> {
         boxShadow: AppColors.premiumShadow,
       ),
       child: ElevatedButton(
-        onPressed: _isProcessing ? null : _handlePayment,
+        onPressed: _isProcessing ||
+                _isABCDemoBlocked ||
+                (_isABCBooking && !_canStartABCCheckout)
+            ? null
+            : _handlePayment,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
@@ -1008,7 +1250,10 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
         child: _isProcessing
             ? const CircularProgressIndicator(color: Colors.white)
-            : const Text("PROCEED TO PAY",
+            : Text(
+                _isABCBooking || _isABCDemoBlocked
+                    ? "CONTINUE TO ABC PAYMENT"
+                    : "PROCEED TO PAY",
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,

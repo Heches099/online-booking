@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/home/domain/entities/user_profile_details.dart';
 
@@ -15,19 +15,22 @@ class UserProfileStorageService {
 
   static const String _profilePrefix = 'user_profile_';
 
-  String get _userId => FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+  String get _userId => Supabase.instance.client.auth.currentUser?.id ?? 'guest';
 
   String get _storageKey => '$_profilePrefix$_userId';
 
   Future<UserProfileDetails> loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    final authUser = FirebaseAuth.instance.currentUser;
+    final authUser = Supabase.instance.client.auth.currentUser;
+    final userName = authUser?.userMetadata?['name'] ??
+        authUser?.userMetadata?['full_name'] ??
+        '';
     final raw = prefs.getString(_storageKey);
 
     if (raw == null || raw.isEmpty) {
       return UserProfileDetails.empty(
         userId: _userId,
-        name: authUser?.displayName ?? '',
+        name: userName,
         email: authUser?.email ?? '',
       );
     }
@@ -36,7 +39,7 @@ class UserProfileStorageService {
     final profile = UserProfileDetails.fromJson(decoded);
     return profile.copyWith(
       userId: _userId,
-      name: profile.name.isEmpty ? authUser?.displayName ?? '' : profile.name,
+      name: profile.name.isEmpty ? userName : profile.name,
       email: authUser?.email ?? profile.email,
     );
   }

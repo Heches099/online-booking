@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:animate_do/animate_do.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/presentation/pages/main_bottom_nav.dart';
+import 'package:flutter/material.dart';
 import 'login_page.dart';
 
 class SplashPage extends StatefulWidget {
@@ -21,7 +20,7 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _navigateToLogin() async {
     await Future.delayed(const Duration(seconds: 3));
-    final destination = FirebaseAuth.instance.currentUser == null
+    final destination = Supabase.instance.client.auth.currentUser == null
         ? const LoginPage()
         : const MainBottomNav();
 

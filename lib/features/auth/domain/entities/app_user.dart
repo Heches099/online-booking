@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class AppUser {
   final String uid;
   final String name;
@@ -17,25 +15,32 @@ class AppUser {
     required this.createdAt,
   });
 
-  factory AppUser.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+  factory AppUser.fromMap(Map<String, dynamic> data, String id) {
+    final ca = data['createdAt'];
+    DateTime created;
+    if (ca is String) {
+      created = DateTime.tryParse(ca) ?? DateTime.now();
+    } else {
+      created = DateTime.now();
+    }
     return AppUser(
-      uid: doc.id,
+      uid: id,
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'],
       nidaNumber: data['nidaNumber'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: created,
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
+      'id': uid,
       'name': name,
       'email': email,
       'phone': phone,
       'nidaNumber': nidaNumber,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 }

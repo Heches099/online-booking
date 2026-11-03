@@ -17,12 +17,12 @@ if (localPropertiesFile.exists()) {
 def googleMapsApiKey =
         localProperties.getProperty("google.maps.api.key") ?:
         System.getenv("GOOGLE_MAPS_API_KEY") ?:
-        ""
+        "AIzaSyCH6Cta3l2YFg4OxZzHf0Kc9OsYhe8EkyE"
 
 android {
     namespace "com.example.online_booking"
 
-    compileSdk 36
+    compileSdk 37
     ndkVersion flutter.ndkVersion
 
     compileOptions {

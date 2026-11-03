@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'signup_page.dart';
 import '../../../home/presentation/pages/main_bottom_nav.dart';
@@ -75,10 +75,10 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       _navigateToHome();
-    } on FirebaseAuthException catch (error) {
+    } on AuthException catch (error) {
       debugPrint('Google Auth Error [${error.code}]: ${error.message}');
       _showSnackBar(
-        AuthFlowHelper.firebaseErrorMessage(error, isGoogleFlow: true),
+        AuthFlowHelper.supabaseErrorMessage(error, isGoogleFlow: true),
       );
     } catch (error) {
       debugPrint('Google Auth Error: $error');
@@ -94,14 +94,14 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = true);
 
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        await Supabase.instance.client.auth.signInWithPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
         _navigateToHome();
-      } on FirebaseAuthException catch (error) {
-        _showSnackBar(AuthFlowHelper.firebaseErrorMessage(error));
+      } on AuthException catch (error) {
+        _showSnackBar(AuthFlowHelper.supabaseErrorMessage(error));
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -170,9 +170,9 @@ class _LoginPageState extends State<LoginPage> {
         'Password reset email sent to $email.',
         backgroundColor: AppColors.success,
       );
-    } on FirebaseAuthException catch (error) {
+    } on AuthException catch (error) {
       _showSnackBar(
-        AuthFlowHelper.firebaseErrorMessage(
+        AuthFlowHelper.supabaseErrorMessage(
           error,
           isPasswordReset: true,
         ),
@@ -401,7 +401,8 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           if (_isLoading)
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               color: Colors.black26,
               child: const Center(
                 child: CircularProgressIndicator(),
@@ -419,7 +420,8 @@ class _LoginPageState extends State<LoginPage> {
     bool isPassword = false,
     String? Function(String?)? validator,
   }) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -461,7 +463,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildSocialButton(FaIconData icon, Color color) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       height: 64,
       width: 64,
       decoration: BoxDecoration(

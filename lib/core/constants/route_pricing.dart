@@ -14,6 +14,7 @@ class RoutePricing {
     'Dar es Salaam-Kahama': 55000,
     'Dar es Salam-Bukoba': 105000,
     'Dar es Salaam-Geita': 150000,
+    'Dar es Salaam-Moshi': 28000,
   };
 
   static double priceFor(String from, String to) {

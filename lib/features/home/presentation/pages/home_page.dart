@@ -163,6 +163,15 @@ class _HomePageState extends State<HomePage>
                   _showBookingHelp();
                 },
               ),
+              _shortcutTile(
+                  icon: Icons.contact_emergency,
+                  title: 'Contact us: 0787-110-500',
+                  subtitle: 'Fast Replay ',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _showAlertMessage(
+                        'for any assistance, please call us 0787-110-500');
+                  }),
             ],
           ),
         ),
@@ -523,7 +532,8 @@ class _HomePageState extends State<HomePage>
     required bool isActive,
     required ValueChanged<bool> onChanged,
   }) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
@@ -1039,7 +1049,8 @@ class _HomePageState extends State<HomePage>
       builder: (sheetContext) => SafeArea(
         child: FractionallySizedBox(
           heightFactor: 0.82,
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
@@ -1047,7 +1058,8 @@ class _HomePageState extends State<HomePage>
             child: Column(
               children: [
                 const SizedBox(height: 12),
-                Container(
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
@@ -1123,7 +1135,8 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildLuxuryPromo() {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       width: double.infinity,
       height: 142,
       clipBehavior: Clip.antiAlias,
@@ -1300,7 +1313,8 @@ class _AnimatedRouteCardState extends State<_AnimatedRouteCard> {
                       Positioned(
                         top: 10,
                         left: 10,
-                        child: Container(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 9,
                             vertical: 5,

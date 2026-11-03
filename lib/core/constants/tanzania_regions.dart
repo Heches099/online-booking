@@ -25,4 +25,5 @@ const List<String> tanzaniaRegions = [
   'Geita',
   'Bariadi',
   'Kagera',
+  'Moshi',
 ];

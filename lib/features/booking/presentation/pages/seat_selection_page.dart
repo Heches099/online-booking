@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../search/domain/entities/bus.dart';
 import 'passenger_details_page.dart';
@@ -25,6 +25,32 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
   final Set<int> _bookedSeats = {};
   final Set<int> _reservedSeats = {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _reservationsSub;
+
+  /// ABC lock inaweka kiti 1 kwa kila reservation, kwa hiyo basi halisi
+  /// la ABC linaruhusu kiti 1 tu kwa kila malipo.
+  bool get _isSingleSeatBus => widget.bus.isABC;
+
+  void _toggleSeat(int seatNum) {
+    final isSelected = selectedSeats.contains(seatNum);
+    if (isSelected) {
+      selectedSeats.remove(seatNum);
+      return;
+    }
+    if (_isSingleSeatBus && selectedSeats.isNotEmpty) {
+      selectedSeats
+        ..clear()
+        ..add(seatNum);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ABC inaruhusu kiti 1 kwa kila malipo.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    selectedSeats.add(seatNum);
+  }
 
   double _calculateTotal() {
     double total = 0;
@@ -76,17 +102,16 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
   void _subscribeToSeatReservations() {
     try {
       final isoDate = widget.travelDate.toIso8601String().substring(0, 10);
-      final q = FirebaseFirestore.instance
-          .collection('seat_reservations')
-          .where('busId', isEqualTo: widget.bus.id)
-          .where('travelDate', isEqualTo: isoDate);
-
-      _reservationsSub = q.snapshots().listen((snap) {
+      _reservationsSub = Supabase.instance.client
+          .from('seat_reservations')
+          .stream(primaryKey: ['id'])
+          .eq('busId', widget.bus.id)
+          .eq('travelDate', isoDate)
+          .listen((rows) {
         final now = DateTime.now();
         final booked = <int>{};
         final reserved = <int>{};
-        for (final doc in snap.docs) {
-          final data = doc.data();
+        for (final data in rows) {
           final seatNumRaw = data['seatNumber'];
           final seatNum = seatNumRaw is int
               ? seatNumRaw
@@ -99,9 +124,7 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
           if (status == 'reserved') {
             final ts = data['reservedUntil'];
             DateTime? until;
-            if (ts is Timestamp) {
-              until = ts.toDate();
-            } else if (ts is String) {
+            if (ts is String) {
               until = DateTime.tryParse(ts);
             }
             if (until != null && until.isAfter(now)) {
@@ -109,18 +132,19 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
             }
           }
         }
-        setState(() {
-          _bookedSeats
-            ..clear()
-            ..addAll(booked);
-          _reservedSeats
-            ..clear()
-            ..addAll(reserved);
-          // Deselect seats that just became unavailable
-          selectedSeats.removeWhere(
-              (s) => _bookedSeats.contains(s) || _reservedSeats.contains(s));
-        });
-      }, onError: (Object error, StackTrace stackTrace) {
+        if (mounted) {
+          setState(() {
+            _bookedSeats
+              ..clear()
+              ..addAll(booked);
+            _reservedSeats
+              ..clear()
+              ..addAll(reserved);
+            selectedSeats.removeWhere(
+                (s) => _bookedSeats.contains(s) || _reservedSeats.contains(s));
+          });
+        }
+      }); onError: (Object error, StackTrace stackTrace) {
         if (!mounted) return;
         // ScaffoldMessenger.of(context).showSnackBar(
         //   // const SnackBar(
@@ -385,13 +409,7 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
     return GestureDetector(
       onTap: isDisabled
           ? null
-          : () => setState(() {
-                if (isSelected) {
-                  selectedSeats.remove(seatNum);
-                } else {
-                  selectedSeats.add(seatNum);
-                }
-              }),
+          : () => setState(() => _toggleSeat(seatNum)),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
@@ -529,6 +547,16 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1)),
+                if (_isSingleSeatBus)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Text('ABC: KITI 1 TU KWA MALIPO',
+                        style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1)),
+                  ),
                 const SizedBox(height: 4),
                 Text(
                   "TZS ${_calculateTotal().toStringAsFixed(0)}",
