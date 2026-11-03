@@ -45,7 +45,6 @@ app.*.map.json
 /android/app/release
 
 # Backend secrets/deps
-backend/
 backend/.env
 .env
 *.env
