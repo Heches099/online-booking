@@ -25,7 +25,7 @@ services:
       - key: ZENOPAY_SECRET_KEY
         sync: false
       - key: ZENOPAY_BASE_URL
-        value: https://api.zeno.africa
+        value: https://zenopaymobile.com/api
       - key: ZENOPAY_WEBHOOK_URL
         sync: false
       - key: ZENOPAY_WEBHOOK_SECRET

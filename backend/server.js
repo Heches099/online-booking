@@ -28,7 +28,7 @@ const allowedOrigins = String(process.env.ALLOWED_ORIGINS || "")
 const ZENOPAY_API_KEY = String(process.env.ZENOPAY_API_KEY || "").trim();
 const ZENOPAY_ACCOUNT_ID = String(process.env.ZENOPAY_ACCOUNT_ID || "").trim();
 const ZENOPAY_WEBHOOK_SECRET = String(process.env.ZENOPAY_WEBHOOK_SECRET || "").trim();
-const ZENOPAY_BASE_URL = String(process.env.ZENOPAY_BASE_URL || "https://api.zeno.africa").trim().replace(/\/$/, "");
+const ZENOPAY_BASE_URL = String(process.env.ZENOPAY_BASE_URL || "https://zenopaymobile.com/api").trim().replace(/\/$/, "");
 
 const PAYMENT_POLL_TTL_SECONDS = Number(process.env.PAYMENT_POLL_TTL_SECONDS || 60);
 const PAYMENT_MAX_POLL_ATTEMPTS = Number(process.env.PAYMENT_MAX_POLL_ATTEMPTS || 12);
@@ -267,7 +267,7 @@ app.post("/api/payments/initialize", authenticateAppUser, async (req, res) => {
       metadata: { busId, travelDate, seats }
     };
 
-    const response = await axios.post(`${ZENOPAY_BASE_URL}/mobile-money-tanzania`, payload, {
+    const response = await axios.post(`${ZENOPAY_BASE_URL}/payments/mobile_money_tanzania`, payload, {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ZENOPAY_API_KEY
@@ -334,7 +334,7 @@ async function startImmediatePolling(orderId, zenoOrderId, attempt = 1) {
 
   setTimeout(async () => {
     try {
-      const url = `${ZENOPAY_BASE_URL}/order-status?order_id=${zenoOrderId}`;
+      const url = `${ZENOPAY_BASE_URL}/payments/order-status?order_id=${zenoOrderId}`;
       const response = await axios.get(url, {
         headers: { 'x-api-key': ZENOPAY_API_KEY },
         timeout: 10000
@@ -385,7 +385,7 @@ async function checkZenoPayStatusAndUpdate(orderDoc) {
   if (currentStatus !== 'pending') return currentStatus;
 
   try {
-    const url = `${ZENOPAY_BASE_URL}/order-status?order_id=${paymentData.zenoOrderId}`;
+    const url = `${ZENOPAY_BASE_URL}/payments/order-status?order_id=${paymentData.zenoOrderId}`;
     const response = await axios.get(url, {
       headers: { 'x-api-key': ZENOPAY_API_KEY },
       timeout: 15000
