@@ -230,17 +230,8 @@ class PaymentService {
         );
       }
 
-      // 1. Create a transaction record in Supabase (Pending)
-      await _saveTransactionToSupabase(
-        orderId: orderId,
-        amount: amount,
-        phoneNumber: formattedPhone,
-        status: 'pending',
-        customerName: fullName,
-        paymentReference: paymentReference,
-      );
-
-      // 2. Prepare the payload expected by the deployed backend.
+      // The backend owns payment records because it uses the service key.
+      // The public client must not write directly to the payments table.
       final backendPayload = {
         'amount': amount,
         'phone': formattedPhone,
@@ -268,19 +259,8 @@ class PaymentService {
 
       debugPrint("🔵 ZENOPAY RESPONSE: ${response.data}");
 
-      final String? zenoOrderId = _extractOrderId(response.data);
-      if (zenoOrderId != null) {
-        await _attachZenopayOrderId(orderId, zenoOrderId);
-      }
-
       final result = _parseZenopayResponse(response, orderId: orderId);
-
-      if (result.isSuccess) {
-        await _updateTransactionStatus(orderId, 'completed');
-      } else if (result.isPending) {
-        await _updateTransactionStatus(orderId, 'pending');
-      } else {
-        await _updateTransactionStatus(orderId, 'failed');
+      if (!result.isSuccess && !result.isPending) {
         debugPrint("❌ Zenopay Payment Failed: ${response.data}");
       }
 
@@ -289,7 +269,6 @@ class PaymentService {
       final String? message =
           _extractBackendErrorMessage(e, resolvedBackendBaseUrl);
       debugPrint("💥 ZENOPAY ERROR: $message");
-      await _updateTransactionStatus(orderId, 'error');
       return PaymentInitResult(
         status: PaymentInitStatus.failed,
         message: message ?? "Payment request failed",
@@ -297,7 +276,6 @@ class PaymentService {
       );
     } catch (e) {
       debugPrint("💥 ZENOPAY ERROR: $e");
-      await _updateTransactionStatus(orderId, 'error');
       return PaymentInitResult(
         status: PaymentInitStatus.failed,
         message: "Unexpected payment error",
@@ -404,58 +382,6 @@ class PaymentService {
     } catch (e) {
       debugPrint('🔥 cancelOrder failed: $e');
       return false;
-    }
-  }
-
-  /// Save transaction to Supabase
-  Future<void> _saveTransactionToSupabase({
-    required String orderId,
-    required double amount,
-    required String phoneNumber,
-    required String status,
-    required String customerName,
-    String? paymentReference,
-  }) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      await _supabase.from('payments').upsert({
-        'userId': user?.id,
-        'orderId': orderId,
-        'amount': amount,
-        'currency': 'TZS',
-        'phoneNumber': phoneNumber,
-        'customerName': customerName,
-        'status': status,
-        'provider': 'Zenopay',
-        if (paymentReference != null && paymentReference.trim().isNotEmpty)
-          'paymentReference': paymentReference.trim(),
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      debugPrint("🔥 Supabase Save Error: $e");
-    }
-  }
-
-  /// Update transaction status in Supabase
-  Future<void> _updateTransactionStatus(String orderId, String status) async {
-    try {
-      await _supabase.from('payments').update({
-        'status': status,
-        'updatedAt': DateTime.now().toIso8601String(),
-      }).eq('orderId', orderId);
-    } catch (e) {
-      debugPrint("🔥 Supabase Update Error: $e");
-    }
-  }
-
-  Future<void> _attachZenopayOrderId(String orderId, String zenoOrderId) async {
-    try {
-      await _supabase.from('payments').update({
-        'zenoOrderId': zenoOrderId,
-        'updatedAt': DateTime.now().toIso8601String(),
-      }).eq('orderId', orderId);
-    } catch (e) {
-      debugPrint("🔥 Supabase Update Error (zenoOrderId): $e");
     }
   }
 
@@ -692,62 +618,6 @@ class PaymentService {
       }
     }
 
-    return null;
-  }
-
-  String? _extractOrderId(dynamic data) {
-    if (data == null) return null;
-    if (data is String) {
-      final Map<String, dynamic>? parsed = _tryParseMap(data);
-      if (parsed != null) {
-        return _extractOrderId(parsed);
-      }
-
-      final Match? jsonMatch =
-          RegExp(r'"order_id"\s*:\s*"([^"]+)"').firstMatch(data);
-      if (jsonMatch != null) {
-        return jsonMatch.group(1);
-      }
-
-      final Match? plainMatch =
-          RegExp(r'order_id\s*[=:]\s*([A-Za-z0-9_-]+)', caseSensitive: false)
-              .firstMatch(data);
-      if (plainMatch != null) {
-        return plainMatch.group(1);
-      }
-      return null;
-    }
-
-    if (data is Map) {
-      final Map<String, dynamic> map = Map<String, dynamic>.from(data);
-      final String? direct = _firstString(map, const ['order_id', 'orderId']);
-      if (direct != null) return direct;
-
-      final dynamic nested = map['data'];
-      if (nested is Map) {
-        final Map<String, dynamic> nestedMap =
-            Map<String, dynamic>.from(nested);
-        return _firstString(nestedMap, const ['order_id', 'orderId']);
-      }
-
-      final String? raw = _firstString(map, const ['raw']);
-      if (raw != null) {
-        return _extractOrderId(raw);
-      }
-    }
-
-    return null;
-  }
-
-  Map<String, dynamic>? _tryParseMap(String value) {
-    try {
-      final dynamic decoded = jsonDecode(value);
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
-      }
-    } catch (_) {
-      // Ignore malformed payloads and fall back to regex extraction.
-    }
     return null;
   }
 

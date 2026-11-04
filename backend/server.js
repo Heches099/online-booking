@@ -243,17 +243,25 @@ app.post("/api/payments/initialize", authenticateAppUser, async (req, res) => {
   }
 
   try {
+    if (!ZENOPAY_API_KEY || !ZENOPAY_ACCOUNT_ID) {
+      return res.status(503).json({
+        status: "failed",
+        message: "ZenoPay is not configured on the backend",
+      });
+    }
+
     let formattedPhone = phone.trim().replace(/^\+/, '');
     if (formattedPhone.startsWith('0')) {
       formattedPhone = '255' + formattedPhone.substring(1);
     }
 
     const payload = {
+      create_order: 1,
       order_id: orderId,
       buyer_email: req.user?.email || "customer@example.com",
       buyer_name: req.user?.name || "App Customer",
       buyer_phone: formattedPhone,
-      amount: Number(amount),
+      amount: String(Math.round(Number(amount))),
       account_id: ZENOPAY_ACCOUNT_ID,
       webhook_url: `${req.protocol}://${req.get('host')}/zenopay-webhook?token=${ZENOPAY_WEBHOOK_SECRET || ''}`,
       metadata: { busId, travelDate, seats }
