@@ -256,15 +256,11 @@ app.post("/api/payments/initialize", authenticateAppUser, async (req, res) => {
     }
 
     const payload = {
-      create_order: 1,
       order_id: orderId,
       buyer_email: req.user?.email || "customer@example.com",
       buyer_name: req.user?.name || "App Customer",
       buyer_phone: formattedPhone,
-      amount: String(Math.round(Number(amount))),
-      account_id: ZENOPAY_ACCOUNT_ID,
-      webhook_url: `${req.protocol}://${req.get('host')}/zenopay-webhook?token=${ZENOPAY_WEBHOOK_SECRET || ''}`,
-      metadata: { busId, travelDate, seats }
+      amount: Number(amount)
     };
 
     const response = await axios.post(`${ZENOPAY_BASE_URL}/payments/mobile_money_tanzania`, payload, {
