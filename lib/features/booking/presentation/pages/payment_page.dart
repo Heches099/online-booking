@@ -419,6 +419,9 @@ class _PaymentPageState extends State<PaymentPage> {
               email: user?.email ?? "traveler@heches.com",
               fullName: widget.passengerNames[0],
               orderId: orderId,
+              busId: widget.bus.id,
+              travelDate: widget.travelDate,
+              seats: widget.selectedSeats,
               paymentReference: paymentReference,
             )
           : await _paymentService.initiateBank(
@@ -426,6 +429,9 @@ class _PaymentPageState extends State<PaymentPage> {
               amount: totalAmount,
               email: user?.email ?? "traveler@heches.com",
               fullName: widget.passengerNames[0],
+              busId: widget.bus.id,
+              travelDate: widget.travelDate,
+              seats: widget.selectedSeats,
               orderId: orderId,
             );
 

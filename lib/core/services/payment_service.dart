@@ -191,6 +191,9 @@ class PaymentService {
     required String email,
     required String fullName,
     required String orderId,
+    required String busId,
+    required DateTime travelDate,
+    required List<String> seats,
     String? paymentReference,
   }) async {
     // 🇹🇿 Format phone to 255XXXXXXXXX
@@ -237,19 +240,14 @@ class PaymentService {
         paymentReference: paymentReference,
       );
 
-      // 2. Prepare Zenopay Payload
-      final payload = {
-        'create_order': '1',
-        'buyer_email': email,
-        'buyer_name': fullName,
-        'buyer_phone': formattedPhone,
-        'amount': amount.toStringAsFixed(0),
-        // Optional: webhook_url for Zenopay to notify your backend/Firebase function
-        // 'webhook_url': 'https://your-firebase-function-url.com/zenopay-webhook',
-      };
+      // 2. Prepare the payload expected by the deployed backend.
       final backendPayload = {
-        'app_order_id': orderId,
-        ...payload,
+        'amount': amount,
+        'phone': formattedPhone,
+        'orderId': orderId,
+        'busId': busId,
+        'travelDate': travelDate.toIso8601String(),
+        'seats': seats,
         if (paymentReference != null && paymentReference.trim().isNotEmpty)
           'payment_reference': paymentReference.trim(),
       };
@@ -258,7 +256,7 @@ class PaymentService {
 
       // 3. Call protected backend payment API
       final Response response = await _dio.post(
-        "$resolvedBackendBaseUrl/zenopay-pay",
+        "$resolvedBackendBaseUrl/api/payments/initialize",
         data: backendPayload,
         options: Options(
           contentType: Headers.jsonContentType,
@@ -538,6 +536,9 @@ class PaymentService {
     required double amount,
     required String email,
     required String fullName,
+    required String busId,
+    required DateTime travelDate,
+    required List<String> seats,
     String? orderId,
   }) async {
     // For now, mapping Bank to the same Zenopay flow or a custom instruction
@@ -550,6 +551,9 @@ class PaymentService {
       email: email,
       fullName: fullName,
       orderId: resolvedOrderId,
+      busId: busId,
+      travelDate: travelDate,
+      seats: seats,
     );
   }
 
